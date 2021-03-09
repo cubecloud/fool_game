@@ -16,10 +16,10 @@ from random import choice, shuffle
 import copy
 import time
 
-__version__ = 0.008
+__version__ = 0.0011
 
 
-class colortext:
+class ColorText:
     purple = '\033[95m'
     cyan = '\033[96m'
     darkcyan = '\033[36m'
@@ -65,30 +65,28 @@ class Deck:
     """
     player_deck = {
         # Это инициализация масти пики - 9 карт от 6 пик до туза пик
-        1: [1, 6, 0, 0, 0, 0, 6], 2: [1, 7, 0, 0, 0, 0, 7], 3: [1, 8, 0, 0, 0, 0, 8],
-        4: [1, 9, 0, 0, 0, 0, 9], 5: [1, 10, 0, 0, 0, 0, 10], 6: [1, 11, 0, 0, 0, 0, 11],
-        7: [1, 12, 0, 0, 0, 0, 12], 8: [1, 13, 0, 0, 0, 0, 13], 9: [1, 14, 0, 0, 0, 0, 14],
+        1: [1, 1, 0, 0, 0, 0, 6], 2: [1, 2, 0, 0, 0, 0, 7], 3: [1, 3, 0, 0, 0, 0, 8],
+        4: [1, 4, 0, 0, 0, 0, 9], 5: [1, 5, 0, 0, 0, 0, 10], 6: [1, 6, 0, 0, 0, 0, 11],
+        7: [1, 7, 0, 0, 0, 0, 12], 8: [1, 8, 0, 0, 0, 0, 13], 9: [1, 9, 0, 0, 0, 0, 14],
         # Это инициализация масти крести - 9 карт от 6 крестей до туза крестей
-        10: [2, 6, 0, 0, 0, 0, 6], 11: [2, 7, 0, 0, 0, 0, 7], 12: [2, 8, 0, 0, 0, 0, 8],
-        13: [2, 9, 0, 0, 0, 0, 9], 14: [2, 10, 0, 0, 0, 0, 10], 15: [2, 11, 0, 0, 0, 0, 11],
-        16: [2, 12, 0, 0, 0, 0, 12], 17: [2, 13, 0, 0, 0, 0, 13], 18: [2, 14, 0, 0, 0, 0, 14],
+        10: [2, 1, 0, 0, 0, 0, 6], 11: [2, 2, 0, 0, 0, 0, 7], 12: [2, 3, 0, 0, 0, 0, 8],
+        13: [2, 4, 0, 0, 0, 0, 9], 14: [2, 5, 0, 0, 0, 0, 10], 15: [2, 6, 0, 0, 0, 0, 11],
+        16: [2, 7, 0, 0, 0, 0, 12], 17: [2, 8, 0, 0, 0, 0, 13], 18: [2, 9, 0, 0, 0, 0, 14],
         # Это инициализация масти буби - 9 карт от 6 бубей до туза бубей
-        19: [3, 6, 0, 0, 0, 0, 6], 20: [3, 7, 0, 0, 0, 0, 7], 21: [3, 8, 0, 0, 0, 0, 8],
-        22: [3, 9, 0, 0, 0, 0, 9], 23: [3, 10, 0, 0, 0, 0, 10], 24: [3, 11, 0, 0, 0, 0, 11],
-        27: [3, 12, 0, 0, 0, 0, 12], 26: [3, 13, 0, 0, 0, 0, 13], 25: [3, 14, 0, 0, 0, 0, 14],
+        19: [3, 1, 0, 0, 0, 0, 6], 20: [3, 2, 0, 0, 0, 0, 7], 21: [3, 3, 0, 0, 0, 0, 8],
+        22: [3, 4, 0, 0, 0, 0, 9], 23: [3, 5, 0, 0, 0, 0, 10], 24: [3, 6, 0, 0, 0, 0, 11],
+        27: [3, 7, 0, 0, 0, 0, 12], 26: [3, 8, 0, 0, 0, 0, 13], 25: [3, 9, 0, 0, 0, 0, 14],
         # Это инициализация масти черви - 9 карт от 6 червей до туза червей
-        28: [4, 6, 0, 0, 0, 0, 6], 29: [4, 7, 0, 0, 0, 0, 7], 30: [4, 8, 0, 0, 0, 0, 8],
-        31: [4, 9, 0, 0, 0, 0, 9], 32: [4, 10, 0, 0, 0, 0, 10], 33: [4, 11, 0, 0, 0, 0, 11],
-        34: [4, 12, 0, 0, 0, 0, 12], 35: [4, 13, 0, 0, 0, 0, 13], 36: [4, 14, 0, 0, 0, 0, 14],
+        28: [4, 1, 0, 0, 0, 0, 6], 29: [4, 2, 0, 0, 0, 0, 7], 30: [4, 3, 0, 0, 0, 0, 8],
+        31: [4, 4, 0, 0, 0, 0, 9], 32: [4, 5, 0, 0, 0, 0, 10], 33: [4, 6, 0, 0, 0, 0, 11],
+        34: [4, 7, 0, 0, 0, 0, 12], 35: [4, 8, 0, 0, 0, 0, 13], 36: [4, 9, 0, 0, 0, 0, 14],
     }
 
     suit_range = {'П': (1, 10), 'К': (10, 19), 'Б': (19, 28), 'Ч': (28, 37)}
+    rank_names = {1: '6', 2: '7', 3: '8', 4: '9', 5: '10', 6: 'В', 7: 'Д', 8: 'К', 9: 'Т'}
     suit_chars = {1: 'П', 2: 'К', 3: 'Б', 4: 'Ч'}
     suits_names = {1: "Пики", 2: "Крести", 3: "Бубны", 4: "Черви"}
     suits_icons = {'П': '\u2660', 'К': '\u2663', 'Б': '\u2666', 'Ч': '\u2665'}
-
-    def __init__(self):
-        pass
 
     def change_card_status(self, index, status):
         self.player_deck[index][2:6] = status
@@ -123,11 +121,12 @@ class Deck:
         # Пока не удалось решить проблему с выводом цветного текста сразу из переменной словаря
         # Делаем проверку и присваиваем цвет через print(f'{переменная}'
         if (suit == 'П') or (suit == 'К'):
-            color = colortext.gray_on_white
+            color = ColorText.gray_on_white
         else:
-            color = colortext.red_on_white
-        output = f'{color}' + str(self.what_rank(index)) + f'{color}' + str(
-            self.suits_icons[self.what_suit(index)][0:]) + f'{colortext.end}'
+            color = ColorText.red_on_white
+        card_rank = self.rank_names.get(self.what_rank(index))
+        output = f'{color}' + card_rank + f'{color}' + str(
+            self.suits_icons[self.what_suit(index)][0:]) + f'{ColorText.end}'
         return output
 
     def show_cards_hor(self, c_list):
@@ -165,6 +164,11 @@ class Player(Deck):
         self.desktop_list = list()
         self.passive_player_pass_flag = False
         self.attack_player_pass_flag = False
+        self.action = None
+        self.trump_index = None
+        self.trump_char: str = ''
+        self.trump_range = tuple
+        pass
 
     def change_game_round(self, game_round):
         self.game_round = game_round
@@ -192,8 +196,6 @@ class Player(Deck):
         # round number for attack
         status[3] = self.game_round
         self.change_card_status(index, status)
-        # self.change_card_status(index,
-        #                         'P' + str(self.player_number) + 'A' + str(self.player_number) + str(self.game_round))
         pass
 
     def add_player_status(self, index):
@@ -203,7 +205,6 @@ class Player(Deck):
         # on hand status
         status[1] = 3
         self.change_card_status(index, status)
-        # self.change_card_status(index, 'P' + str(self.player_number))
         pass
 
     def add_defending_status(self, index):
@@ -215,8 +216,6 @@ class Player(Deck):
         # round number for attack
         status[3] = self.game_round
         self.change_card_status(index, status)
-        # self.change_card_status(index,
-        #                         'P' + str(self.player_number) + 'D' + str(self.player_number) + str(self.game_round))
         pass
 
     # Возвращает лист возможных ходов (на основе карт в руке)
@@ -234,7 +233,7 @@ class Player(Deck):
     # Возвращает лист возможных ответов (карт) на защиту
     def get_validated_defend_list(self, index):
         defend_list = list()
-        trumps_list = list()
+        # trumps_list = list()
         suit = self.what_suit(index)
         weight = self.get_card_weight(index)
         for card in self.player_cards_onhand_list:
@@ -373,7 +372,6 @@ class Player(Deck):
         return low_card
 
     def attacking(self):
-        attack_list = list()
         # если на столе уже что-то есть
         if len(self.desktop_list) > 0:
             attack_list = self.get_validated_attack_list()
@@ -386,7 +384,7 @@ class Player(Deck):
         return result
 
     def defending(self):
-        if (self.attack_player_pass_flag == False) or (self.passive_player_pass_flag == False):
+        if not self.attack_player_pass_flag or not self.passive_player_pass_flag:
             check_parity = (len(self.desktop_list) + 1) % 2
             if check_parity == 0:
                 # Последняя карта в десктоп листе
@@ -406,8 +404,7 @@ class Player(Deck):
 
     # Атака пассивного компьютера/игрока
     def passive_attacking(self):
-        if (len(self.desktop_list) > 0 and len(self.desktop_list) < 11) and self.attack_player_pass_flag:
-            attack_list = list()
+        if (0 < len(self.desktop_list) < 11) and self.attack_player_pass_flag:
             attack_list = self.get_validated_attack_list()
             if len(attack_list) > 0:
                 result = self.low_weight_card(attack_list)
@@ -435,10 +432,8 @@ class Player(Deck):
         # trump in current game status
         status[1] = 4
         self.change_card_status(index, status)
-        # self.change_card_status(index, 'Козырь')
         self.add_weight_2suit(self.trump_char, 100)
         self.trump_range = range(self.suit_range[self.trump_char][0], self.suit_range[self.trump_char][1])
-        # print('Козырь', self.what_suit(index))
         pass
 
     def get_deck(self, indeck):
@@ -479,435 +474,27 @@ class Player(Deck):
         print('Козырь: ' + self.show_card(self.trump_index))
         pass
 
-"""
-class Deck:
-    #  [0] - Масть и ранг, 2 символа
-    #  [1] - Статус
-    #  [2] - Вес карты (динамический)
-
-    # Сброс - карта в сбросе
-    # Стол № - Карта от игрока № на столе
-    # Козырь - карта открыта в качестве козыря'
-
-    # Статус дата
-    # [P1..4] - первые два символа, принадлежность игроку [0..1]
-    # [K] - первый символ, карта лежит в колоде [0]
-    # [Т] - первый символ, объявленный козырь лежит в колоде последним[0]
-    # [G1..4] - первые два символа, принадлежность игроку, сброс от игрока с номером [0..1]
-    # [A1...6][D1...6] - Атакующая или защитная карта игрока, лежит на столе
-    # (цифра - порядковый номер хода со стороны игрока - не более 6)
-    # с 3 по 4 символ статуса [2..3]
-    # [1х] - 5 и 6 символ статуса, номер турна (хода) в игре [4..5]
-
-    player_deck = {1: ['П6', 'Колода', 6], 2: ['П7', 'Колода', 7], 3: ['П8', 'Колода', 8], 4: ['П9', 'Колода', 9],
-                   5: ['П10', 'Колода', 10], 6: ['ПВ', 'Колода', 11], 7: ['ПД', 'Колода', 12],
-                   8: ['ПК', 'Колода', 13], 9: ['ПТ', 'Колода', 14],
-                   10: ['К6', 'Колода', 6], 11: ['К7', 'Колода', 7], 12: ['К8', 'Колода', 8], 13: ['К9', 'Колода', 9],
-                   14: ['К10', 'Колода', 10], 15: ['КВ', 'Колода', 11], 16: ['КД', 'Колода', 12],
-                   17: ['КК', 'Колода', 13], 18: ['КТ', 'Колода', 14],
-                   19: ['Б6', 'Колода', 6], 20: ['Б7', 'Колода', 7], 21: ['Б8', 'Колода', 8], 22: ['Б9', 'Колода', 9],
-                   23: ['Б10', 'Колода', 10], 24: ['БВ', 'Колода', 11], 25: ['БД', 'Колода', 12],
-                   26: ['БК', 'Колода', 13], 27: ['БТ', 'Колода', 14],
-                   28: ['Ч6', 'Колода', 6], 29: ['Ч7', 'Колода', 7], 30: ['Ч8', 'Колода', 8], 31: ['Ч9', 'Колода', 9],
-                   32: ['Ч10', 'Колода', 10], 33: ['ЧВ', 'Колода', 11], 34: ['ЧД', 'Колода', 12],
-                   35: ['ЧК', 'Колода', 13], 36: ['ЧТ', 'Колода', 14]}
-    suit_range = {'П': (1, 10), 'К': (10, 19), 'Б': (19, 28), 'Ч': (28, 37)}
-    suits_names = {"П": "Пики", "К": "Крести", "Б": "Бубны", "Ч": "Черви"}
-    suits_icons = {"П": '\u2660', "К": '\u2663', "Б": '\u2666', "Ч": '\u2665'}
-
-    def __init__(self):
-        pass
-
-    # def get_attacking_cards_list (self, round):
-    #     a_list=list()
-    #     for index in self.player_deck:
-    #         if len(self.player_deck[index][1]) > 4:
-    #             if self.player_deck[index][1][4:] == str(round):
-    #                 if self.player_deck[index][1][2] == 'A':
-    #                     a_list.append(index)
-    #     return a_list
-    #
-    # def get_defending_cards_list (self, round):
-    #     d_list=list()
-    #     for index in self.player_deck:
-    #         if len(self.player_deck[index][1]) > 4:
-    #             if self.player_deck[index][1][4:] == str(round):
-    #                 if self.player_deck[index][1][2] == 'D':
-    #                     d_list.append(index)
-    #     return d_list
-
-    def change_card_status(self, index, status):
-        self.player_deck[index][1] = status
-
-    def get_cardinfo(self, index):
-        return self.player_deck[index]
-
-    def get_current_status(self, index):
-        return self.player_deck[index][1]
-
-    def change_card_weight(self, index, new_weight):
-        self.player_deck[index][2] = new_weight
-
-    def get_card_weight(self, index):
-        return self.player_deck[index][2]
-
-    def add_card_weight(self, index, add_weight):
-        return self.change_card_weight(index, self.get_card_weight(index) + add_weight)
-
-    def what_suit(self, index):
-        return self.player_deck[index][0][0]
-
-    def what_rank(self, index):
-        return self.player_deck[index][0][1:]
-
-    def add_weight_2suit(self, suit_char, add_weight):
-        for index in range(self.suit_range[suit_char][0], self.suit_range[suit_char][1]):
-            self.add_card_weight(index, add_weight)
-
-    def show_card(self, index):
-        suit = self.what_suit(index)
-        # Пока не удалось решить проблему с выводом цветного текста сразу из переменной словаря
-        # Делаем проверку и присваиваем цвет через print(f'{переменная}'
-        if (suit == 'П') or (suit == 'К'):
-            color = colortext.gray_on_white
-        else:
-            color = colortext.red_on_white
-        output = f'{color}' + str(self.what_rank(index)) + f'{color}' + str(
-            self.suits_icons[self.what_suit(index)][0:]) + f'{colortext.end}'
-        return output
-
-    def show_cards_hor(self, c_list):
-        output = str()
-        for card in c_list:
-            output += (str(self.show_card(card)) + ' ')
-            # print(output)
-        return output
-
-    def show_cards_vert_numbered(self, c_list):
-        cards_on_hand = 1
-        for card in c_list:
-            print(f'{cards_on_hand}. ' + self.show_card(card))
-            cards_on_hand += 1
-"""
-"""
-class Player(Deck):
-    def __init__(self, N, player_type):
-
-        self.player_number = N
-        self.player_types = {1: 'Human', 2: 'Computer'}
-        self.player_type = self.player_types[player_type]
-        # если человек то запрашиваем имя
-        if self.player_type == self.player_types[1]:
-            # self.player_name = self.player_types[player_type]
-            self.ask_for_name()
-        else:
-            self.player_name = 'Computer №' + str(self.player_number)
-        self.player_cards_onhand_list = list()
-        self.game_round = 0
-        self.player_turn = 0
-        self.players_number = 0
-        self.desktop_list = list()
-        self.passive_player_pass_flag = False
-        self.attack_player_pass_flag = False
-
-    def change_game_round(self, game_round):
-        self.game_round = game_round
-        pass
-
-    def change_player_turn(self, turn):
-        self.player_turn = turn
-        pass
-
-    def add_graveyard_status(self, index):
-        status = self.get_current_status(index)
-        status = 'G' + status[1:4] + str(self.game_round)
-        self.change_card_status(index, status)
-        pass
-
-    def add_attack_status(self, index):
-        self.change_card_status(index,
-                                'P' + str(self.player_number) + 'A' + str(self.player_number) + str(self.game_round))
-        pass
-
-    def add_player_status(self, index):
-        self.change_card_status(index, 'P' + str(self.player_number))
-        pass
-
-    def add_defending_status(self, index):
-        self.change_card_status(index,
-                                'P' + str(self.player_number) + 'D' + str(self.player_number) + str(self.game_round))
-        pass
-
-    # Возвращает лист возможных ходов (на основе карт в руке)
-    def get_validated_attack_list(self):
-        rank_list = list()
-        attack_list = list()
-        for card in self.desktop_list:
-            rank_list.append(self.what_rank(card))
-        for card in self.player_cards_onhand_list:
-            if self.what_rank(card) in rank_list:
-                attack_list.append(card)
-        # print (self.show_cards_hor(attack_list))
-        return attack_list
-
-    # Возвращает лист возможных ответов (карт) на защиту
-    def get_validated_defend_list(self, index):
-        defend_list = list()
-        trumps_list = list()
-        suit = self.what_suit(index)
-        weight = self.get_card_weight(index)
-        for card in self.player_cards_onhand_list:
-            if self.what_suit(card) == suit and self.get_card_weight(card) > weight:
-                defend_list.append(card)
-        if suit == self.trump_char:
-            pass
-            # for card in self.trumps_from_hand():
-            #     if self.get_card_weight(card) > weight:
-            #         trumps_list.append(card)
-            # defend_list = trumps_list
-        else:
-            defend_list.extend(self.trumps_from_hand())
-        # print (self.show_cards_hor(defend_list))
-        return defend_list
-
-    # возвращает из руки карту с наименьшим индексом
-    def lowest_from_hand(self):
-        return min(self.player_cards_onhand_list)
-
-    # возвращает из руки _козырную_ карту с наименьшим индексом
-    def lowest_trump_from_hand(self):
-        try:
-            temp = min(self.trumps_from_hand())
-            return temp
-        except ValueError:
-            temp = []
-            return temp
-
-    # возвращает List из козырных карт в руке
-    def trumps_from_hand(self):
-        trumps_onhand = []
-        for index in self.player_cards_onhand_list:
-            if index in self.trump_range:
-                trumps_onhand.append(index)
-        return trumps_onhand
-
-    def get_card(self, index):
-        self.player_cards_onhand_list.append(index)
-        self.add_player_status(index)
-
-    # возвращает кол-во карт необходимое взять в руку игроку из колоды.
-    def check_hand_before_round(self):
-        temp = 6 - (len(self.player_cards_onhand_list))
-        if temp < 0:
-            temp = 0
-        return temp
-
-    #  это ход игрока
-    def turn(self, action):
-        self.action = action
-        if self.player_type == 'Computer':
-            result = self.analyze()
-        else:
-            if (self.action == 'Attack') and (len(self.desktop_list) > 0):
-                if self.attack_player_pass_flag:
-                    result = 0
-                    return result
-                attack_list = self.get_validated_attack_list()
-                while True:
-                    card_number = self.ask_for_card()
-                    if card_number > 0:
-                        result = self.player_cards_onhand_list[card_number - 1]
-                        if result in attack_list:
-                            # print (self.show_card(result))
-                            break
-                        else:
-                            print('Некорректная карта')
-                            continue
-                    else:
-                        result = 0
-                        break
-                return result
-            elif (self.action == 'Attack') and (len(self.desktop_list) == 0):
-                card_number = self.ask_for_card()
-                if card_number > 0:
-                    result = self.player_cards_onhand_list[card_number - 1]
-                    # print (self.show_card(result))
-                else:
-                    result = 0
-                return result
-
-            if (self.action == 'Defend') and (len(self.desktop_list) > 0):
-                defending_card = self.desktop_list[(len(self.desktop_list)) - 1]
-                # print ('Defending', defending_card)
-                defend_list = self.get_validated_defend_list(defending_card)
-                while True:
-                    card_number = self.ask_for_card()
-                    if card_number > 0:
-                        result = self.player_cards_onhand_list[card_number - 1]
-                        if result in defend_list:
-                            # print (self.show_card(result))
-                            break
-                        else:
-                            print('Некорректная карта')
-                            continue
-                    else:
-                        result = 0
-                        break
-                return result
-
-            if (self.action == 'Passive') and (len(self.desktop_list) > 0) and self.attack_player_pass_flag:
-                attack_list = self.get_validated_attack_list()
-                while True:
-                    card_number = self.ask_for_card()
-                    if card_number > 0:
-                        result = self.player_cards_onhand_list[card_number - 1]
-                        if result in attack_list:
-                            print(self.show_card(result))
-                            break
-                        else:
-                            print('Некорректная карта')
-                            continue
-                    else:
-                        result = 0
-                        break
-                return result
-            else:
-                # (self.action == 'Passive') and (len(self.desktop_list) == 0):
-                result = -1
-                return result
-            # возвращаем действие и индекс карты (или пас/взять)
-            result = -1
-        return result
-
-    def low_weight_card(self, c_list):
-        if len(c_list) > 0:
-            card_weight = self.player_deck.get(c_list[0])[2]
-            low_card = 0
-            for card in c_list:
-                if (self.player_deck.get(card)[2]) <= card_weight:
-                    low_card = card
-                    card_weight = self.player_deck.get(card)[2]
-        else:
-            low_card = 0
-        return low_card
-
-    def attacking(self):
-        attack_list = list()
-        # если на столе уже что-то есть
-        if len(self.desktop_list) > 0:
-            attack_list = self.get_validated_attack_list()
-            if len(attack_list) > 0:
-                result = self.low_weight_card(attack_list)
-            else:
-                result = 0
-        else:
-            result = self.low_weight_card(self.player_cards_onhand_list)
-        return result
-
-    def defending(self):
-        if self.attack_player_pass_flag == False or self.passive_player_pass_flag == False:
-            check_parity = (len(self.desktop_list) + 1) % 2
-            if check_parity == 0:
-                # Последняя карта в десктоп листе
-                defending_card = self.desktop_list[(len(self.desktop_list)) - 1]
-                # print ('Defending', defending_card)
-                defend_list = self.get_validated_defend_list(defending_card)
-                if len(defend_list) > 0:
-                    result = self.low_weight_card(defend_list)
-                else:
-                    result = 0
-            else:
-                result = -1
-        else:
-            # если мы ждем то пропускаем к следующему игроку (например когда пасует атакующий)
-            result = -1
-        return result
-
-    # Атака пассивного компьютера/игрока
-    def passive_attacking(self):
-        if (len(self.desktop_list) > 0 and len(self.desktop_list) < 11) and self.attack_player_pass_flag:
-            attack_list = list()
-            attack_list = self.get_validated_attack_list()
-            if len(attack_list) > 0:
-                result = self.low_weight_card(attack_list)
-            else:
-                result = 0
-            return result
-        else:
-            result = -1
-            return result
-
-    # Возвращает индекс карты или в случае
-    def analyze(self):
-        if self.action == 'Attack':
-            r_index = self.attacking()
-        elif self.action == 'Defend':
-            r_index = self.defending()
-        elif self.action == 'Passive':
-            r_index = self.passive_attacking()
-        return r_index
-
-    def set_trump(self, index):
-        self.trump_index = index
-        self.trump_char = self.what_suit(index)
-        self.change_card_status(index, 'Козырь')
-        self.add_weight_2suit(self.trump_char, 100)
-        self.trump_range = range(self.suit_range[self.trump_char][0], self.suit_range[self.trump_char][1])
-        # print('Козырь', self.what_suit(index))
-        pass
-
-    def get_deck(self, indeck):
-        self.player_deck = copy.deepcopy(indeck)
-        pass
-
-    def ask_for_name(self):
-        print('Игрок', self.player_number, 'введите имя =>')
-        while True:
-            try:
-                self.player_name = str(input())
-                break
-            except (TypeError, ValueError):
-                print("Неправильный ввод")
-        pass
-
-    def ask_for_card(self):
-        # print(f'Игрок {self.player_name} введите номер карты =>')
-        self.show_cards_vert_numbered(self.player_cards_onhand_list)
-        print('0. Пас/забрать')
-        self.show_trump()
-
-        while True:
-            try:
-                card_number = int(input(f'Игрок {self.player_name} введите номер карты =>'))
-                if card_number > len(self.player_cards_onhand_list):
-                    print("Неправильный ввод")
-                    continue
-                # elif card_number<len(self.player_cards_onhand_list):
-                #     break
-                break
-            except (TypeError, ValueError):
-                print("Неправильный ввод")
-        # print (card_number)
-        return card_number
-
-    def show_trump(self):
-        print('Козырь: ' + self.show_card(self.trump_index))
-        pass
-"""
 
 class Table:
-    def __init__(self, N):
+    def __init__(self, players_number):
         # кол-во игроков
         self.winner = 0
         self.looser = 0
         self.dd = Deck()
-        self.players_number = N
+        self.players_number = players_number
         self.playing_deck = self.dd.player_deck
         self.desktop_list: list = []
         self.end_of_deck = False
-        self.action = ''
         self.result = 0
         self.players_numbers_lst: list = []
+        self.hidden_deck_index: int = -1
+        self.hidden_playing_deck_order: list = []
+        self.trump_index: int = -1
+        self.player_turn: int = 0
+        self.game_round: int = 0
+        self.action: str = str()
+        self.attack_player_empty_hand_flag = False
+        self.pl: dict = {}
         for i in range(1, self.players_number + 1):
             self.players_numbers_lst.append(i)
 
@@ -979,6 +566,13 @@ class Table:
             self.pl[p_number].get_card(index)
             for player_number in self.players_numbers_lst:
                 if player_number != p_number:
+                    status = self.pl[player_number].get_current_status(index)
+                    # player number
+                    status[0] = p_number
+                    # on hand status
+                    status[1] = 3
+                    self.pl[player_number].change_card_status(index, status)
+                else:
                     self.pl[player_number].add_player_status(index)
         pass
 
@@ -1005,14 +599,15 @@ class Table:
     # если такого нет ищется игрок с наименьшей картой (по рангу масти)
     def first_turn_choice(self):
         # print ("Идет выбор ходящего первым")
-        min_card_index = dict()
+        min_card_index: dict = {}
         for player_number in self.players_numbers_lst:
             # print('Игрок',player_number, self.show_cards_list(self.pl[player_number].trumps_from_hand()))
             min_card_index[player_number] = self.pl[player_number].lowest_trump_from_hand()
         # Пробуем операцию мин
         try:
             min_card_player = min(min_card_index.keys(), key=(lambda k: min_card_index[k]))
-            # print (f'Минимальная карта у игрока {min_card_player}, это карта', self.show_card(min_card_index[min_card_player]))
+            # print (f'Минимальная карта у игрока {min_card_player}, это карта',
+            # self.show_card(min_card_index[min_card_player]))
             return min_card_player, min_card_index[min_card_player]
         # если есть пустые листы
         except (TypeError, ValueError):
@@ -1020,7 +615,7 @@ class Table:
             check_card = 0
             for player_number in self.players_numbers_lst:
                 # если лист пуст ищем дальше по циклу
-                if min_card_index[player_number] == []:
+                if not min_card_index[player_number]:
                     continue
                 # если список не пустой проверяем значение и записываем если больше
                 elif min_card_index[player_number] > check_card:
@@ -1032,17 +627,18 @@ class Table:
             # Игрока с козырем нет - ищем _любую_ самую младшую карту у игроков (пики, крести, бубны, червы)
             else:
                 for playerNumber1 in self.players_numbers_lst:
-                    # print('Игрок',playerNumber1, self.show_cards_list(self.pl[playerNumber1].player_cards_onhand_list))
+                    # print('Игрок',playerNumber1,
+                    # self.show_cards_list(self.pl[playerNumber1].player_cards_onhand_list))
                     min_card_index[playerNumber1] = self.pl[playerNumber1].lowest_from_hand()
                 min_card_player = (min(min_card_index.items(), key=lambda x: x[1])[0])
         # print(min_card_index)
-        # print (f'Минимальная карта у игрока {min_card_player}, это карта', self.show_card(min_card_index[min_card_player]))
+        # print (f'Минимальная карта у игрока {min_card_player},
+        # это карта', self.show_card(min_card_index[min_card_player]))
         return min_card_player, min_card_index[min_card_player]
 
     # Устанавливаем кол-во игроков
     def set_players(self):
-        self.pl = dict()
-        #     # Иницианилизируем работу класса игроков и делаем их словарем
+        # Иницианилизируем работу класса игроков и делаем их словарем
         print(f'Кол-во игроков: {self.players_number}')
         for i in self.players_numbers_lst:
             if i == 1:
@@ -1171,7 +767,8 @@ class Table:
         print('В колоде карт: ' + str(35 - self.hidden_deck_index))
         print(f'Заход игрока {self.player_turn}, {self.pl[self.player_turn].player_name}')
         print(
-            f'Отбой игрока {self.next_player(self.player_turn)}, {self.pl[self.next_player(self.player_turn)].player_name}')
+            f'Отбой игрока {self.next_player(self.player_turn)}, '
+            f'{self.pl[self.next_player(self.player_turn)].player_name}')
         self.pl[1].show_trump()
         # self.pl[1].show_cards_vert_numbered(self.pl[1].player_cards_onhand_list)
         if len(self.desktop_list) > 0:
@@ -1282,25 +879,27 @@ class Table:
         #             flag = True
         # if flag:
         #     time.sleep(2)
-        #     self.cls()
+        #     self.clear_screen()
 
         if self.pl[player_number].player_type == 'Computer':
             # time.sleep(3)
-            self.cls()
+            self.clear_screen()
         else:
             # time.sleep(2)
-            self.cls()
+            self.clear_screen()
 
-    def cls(self):
+    @staticmethod
+    def clear_screen() -> None:
         print("\n" * 100)
+        pass
 
     def take_action(self, player_number):
         if player_number == self.player_turn:
             action = 'Attack'
         # если ход + 1 равен наш номер - защищаемся, или наш номер 1-й в списке, а ходит последний в списке
-        elif (player_number == self.next_player(self.player_turn)) or (
-                self.player_turn == self.players_numbers_lst[self.players_number - 1] and player_number ==
-                self.players_numbers_lst[0]):
+        elif (player_number == self.next_player(self.player_turn)) or \
+                (self.player_turn == self.players_numbers_lst[self.players_number - 1] and
+                 player_number == self.players_numbers_lst[0]):
             action = 'Defend'
         else:
             action = 'Passive'
@@ -1326,7 +925,9 @@ class Table:
         while circle:
             if len(self.desktop_list) == 12:
                 print(
-                    f'Игрок {self.next_player(self.player_turn)} {self.pl[self.next_player(self.player_turn)].player_name} отбивается (6 пар), карты уходят в сброс',
+                    f'Игрок {self.next_player(self.player_turn)} '
+                    f'{self.pl[self.next_player(self.player_turn)].player_name} '
+                    f'отбивается (6 пар), карты уходят в сброс',
                     self.pl[player_number].show_cards_hor(self.desktop_list))
                 self.add_2graveyard(self.desktop_list)
                 # убираем карты с десктопа
@@ -1348,9 +949,11 @@ class Table:
                     self.pl[player_number].add_attack_status(self.result)
                     self.pl[player_number].player_cards_onhand_list.remove(self.result)
                     self.add_card_2desktop(self.result)
-                    # print(f'Ход игрока {player_number} {self.pl[player_number].player_name} - {self.pl[player_number].show_card(result)}')
+                    # print(f'Ход игрока {player_number}
+                    # {self.pl[player_number].player_name} - {self.pl[player_number].show_card(result)}')
                     print(
-                        f'Ход игрока {player_number} {self.pl[player_number].player_name} под игрока {self.next_player(player_number)} {self.pl[player_number].show_card(self.result)}')
+                        f'Ход игрока {player_number} {self.pl[player_number].player_name} под игрока '
+                        f'{self.next_player(player_number)} {self.pl[player_number].show_card(self.result)}')
                     # print (f'Атака игрока {player_number}',self.pl[player_number].show_card(result))
                     # print ('Десктоп', self.desktop_list)
                     # передача по кругу следующему игроку
@@ -1382,7 +985,9 @@ class Table:
                         continue
                     # Проверяем флаги, что мы уже пасовали
                     # и пассивные игроки пасовали и можно отправить карты в сброс
-                    elif self.players_number > 2 and self.check_passive_player_pass_flag() and self.check_attack_player_pass_flag():
+                    elif self.players_number > 2 and \
+                            self.check_passive_player_pass_flag() and \
+                            self.check_attack_player_pass_flag():
                         # Карты уходят в сброс
                         print(f'Карты уходят в сброс', self.pl[player_number].show_cards_hor(self.desktop_list))
                         self.add_2graveyard(self.desktop_list)
@@ -1414,9 +1019,11 @@ class Table:
                     self.pl[player_number].player_cards_onhand_list.remove(self.result)
                     self.add_card_2desktop(self.result)
                     # print(
-                    #     f'Игрок {player_number} {self.pl[player_number].player_name} отбивается - {self.pl[player_number].show_card(result)}')
+                    #     f'Игрок {player_number}
+                    #     {self.pl[player_number].player_name} отбивается - {self.pl[player_number].show_card(result)}')
                     print(
-                        f'Игрок {player_number} {self.pl[player_number].player_name} отбивается {self.pl[player_number].show_card(self.result)}')
+                        f'Игрок {player_number} {self.pl[player_number].player_name} '
+                        f'отбивается {self.pl[player_number].show_card(self.result)}')
                     # print ('Десктоп', self.desktop_list)
 
                     # print ('PN',player_number, 'PT',self.player_turn)
@@ -1506,7 +1113,8 @@ class Table:
                     continue
                 elif self.action == 'Passive' and self.result < 0:
                     print(
-                        f'Игрок {player_number} {self.pl[player_number].player_name} пропускает ход, ждем сигнал от атакующего')
+                        f'Игрок {player_number} {self.pl[player_number].player_name} '
+                        f'пропускает ход, ждем сигнал от атакующего')
                     self.set_passive_player_pass_flag(player_number, False)
                     player_number = self.next_player(player_number)
                     continue
