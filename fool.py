@@ -16,7 +16,7 @@ from random import choice, shuffle
 import copy
 import time
 
-__version__ = 0.0012
+__version__ = 0.0013
 
 
 class ColorText:
