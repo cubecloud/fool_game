@@ -1,4 +1,4 @@
-#  Copyright (c) 2020. Oleg Novokshonov
+#  Copyright (c) 2021. Oleg Novokshonov
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -16,7 +16,7 @@ from random import choice, shuffle
 import copy
 import time
 
-__version__ = 0.0011
+__version__ = 0.0012
 
 
 class ColorText:
