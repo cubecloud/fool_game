@@ -16,7 +16,7 @@ from random import choice, shuffle
 import copy
 import time
 
-__version__ = 0.0020
+__version__ = 0.0021
 
 
 class ColorText:
@@ -565,10 +565,17 @@ class Table:
             print()
         pass
 
-    # добавить карту в руку игрока (раздача, забрать
-    # если не отбился, или из колоды после отбоя)
-    def add_card_2player_hand(self, p_number):
-        # Добавим карту в руку игрока
+
+    def add_card_2player_hand(self, p_number) -> None:
+        """
+        добавить карту в руку игрока (раздача, забрать
+        если не отбился, или из колоды после отбоя)
+        Args:
+            p_number:
+
+        Returns:
+            None
+        """
         if self.hidden_deck_index <= 35 and not self.end_of_deck:
             self.pl[p_number].get_card(self.current_card_index())
             # Индекс карты в дек листе меняем на следующую карту
@@ -591,6 +598,7 @@ class Table:
                     status[0] = p_number
                     # on hand status
                     status[1] = 3
+                    status[3] = self.game_round
                     self.pl[player_number].change_card_status(index, status)
                 else:
                     self.pl[player_number].add_player_status(index)
