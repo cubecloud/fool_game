@@ -12,11 +12,56 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 
-from random import choice, shuffle
+from random import shuffle
+import numpy as np
+import pickle as pkl
+import collections
 import copy
 import time
 
-__version__ = 0.0021
+__version__ = 0.0024
+
+Experience = collections.namedtuple('Experience', field_names=['state', 'action', 'reward', 'done', 'new_state'])
+
+class ExperienceReplay:
+    def __init__(self, capacity):
+        self.capacity = capacity
+        self.buffer = collections.deque(maxlen=capacity)
+
+    def __len__(self):
+        return len(self.buffer)
+
+    def append(self, experience):
+        self.buffer.append(experience)
+
+    def sample(self, batch_size):
+        indices = np.random.choice(len(self.buffer), batch_size, replace=False)
+        states, actions, rewards, dones, next_states = zip(*[self.buffer[idx] for idx in indices])
+        return np.array(states), np.array(actions), np.array(rewards, dtype=np.float32), \
+               np.array(dones, dtype=np.uint8), np.array(next_states)
+
+    def save(self, file_path, buff_len=10000):
+        with open(file_path, "wb") as f:
+            print('Save exp buffer...')
+            if (len(self.buffer) < self.capacity) and (len(self.buffer) < buff_len):
+              buff_len = len(self.buffer)
+            elif len(self.buffer) < buff_len:
+              buff_len = len(self.buffer)
+            states, actions, rewards, dones, next_states = zip(*[self.buffer[idx] for idx in range(len(self.buffer)-buff_len, len(self.buffer))])
+            pkl.dump([states, actions, rewards, dones, next_states], f)
+            del [states, actions, rewards, dones, next_states]
+            pass
+
+    def load(self, file_path):
+        with open(file_path, "rb") as f:
+            print('Loading exp buffer...')
+            # self.buffer = pkl.load(f)
+            states, actions, rewards, dones, next_states = pkl.load(f)
+            for state, action, reward, done, next_state in zip(states, actions, rewards, dones, next_states):
+                exp = Experience(state, action, reward, done, next_state)
+                self.buffer.append(exp)
+            del [states, actions, rewards, dones, next_states]
+        pass
 
 
 class ColorText:
@@ -119,6 +164,7 @@ class Deck:
     def add_weight_2suit(self, suit_char, add_weight):
         for index in range(self.suit_range[suit_char][0], self.suit_range[suit_char][1]):
             self.add_card_weight(index, add_weight)
+        pass
 
     def show_card(self, index):
         suit = self.what_suit(index)
@@ -145,7 +191,7 @@ class Deck:
         for card in cards_list:
             print(f'{cards_on_hand}. ' + self.show_card(card))
             cards_on_hand += 1
-    pass
+        pass
 
 
 class Player(Deck):
@@ -171,6 +217,42 @@ class Player(Deck):
         self.trump_index = None
         self.trump_char: str = ''
         self.trump_range = tuple
+        self.state = np.zeros(shape=(36, 7), dtype=np.int8)
+
+        self.action_idx: int = 0
+        self.done: bool = False
+        self.reward: float = 0
+        self.next_state = np.zeros(shape=(36, 7), dtype=np.int8)
+        self.experience = Experience
+        pass
+
+    def get_next_state(self) -> None:
+        """
+        Convert current player deck to np.array state
+
+        Returns:
+            None
+        """
+        next_state = []
+        for value in self.player_deck.values():
+            next_state.append(value)
+        self.next_state = np.asarray(next_state)
+        pass
+
+    def experience(self, action_idx) -> None:
+        """
+        Prepare one turn experience data
+
+        Args:
+            action_idx: action card index from player turn
+
+        Returns:
+            None:
+        """
+        self.get_next_state()
+        self.action = action_idx
+
+        pass
 
     def change_game_round(self, game_round):
         self.game_round = game_round
@@ -424,7 +506,10 @@ class Player(Deck):
             r_index = self.attacking()
         elif self.action == 'Defend':
             r_index = self.defending()
-        elif self.action == 'Passive':
+        else:
+            """
+            self.action == 'Passive':
+            """
             r_index = self.passive_attacking()
         return r_index
 
@@ -501,6 +586,7 @@ class Table:
         for i in range(1, self.players_number + 1):
             self.players_numbers_lst.append(i)
         self.debug_verbose = 3
+        pass
 
     # передаем индекс карты из списка self.hidden_playing_deck_order,
     # ссылаясь на индекс верхней карты колоды
@@ -527,7 +613,6 @@ class Table:
             action == "Passive":
             """
             action_number = 1
-
         self.desktop_list.append(index)
         for player_number in self.players_numbers_lst:
             self.pl[player_number].desktop_list = self.desktop_list
@@ -564,7 +649,6 @@ class Table:
         else:
             print()
         pass
-
 
     def add_card_2player_hand(self, p_number) -> None:
         """
@@ -686,12 +770,18 @@ class Table:
         self.hidden_deck_index = 0
         pass
 
-    # мешаем колоду
     def shuffle(self):
+        """
+        Shuffle the deck of cards
+
+        Returns:
+            None
+        """
         # Это лист индексов колоды карт который отражает фактически колоду
         self.hidden_playing_deck_order = list(self.playing_deck.keys())
         # А теперь перемешанную колоду
         shuffle(self.hidden_playing_deck_order)
+        pass
 
     def show_first_turn_card(self):
         player, index = self.first_turn_choice()
@@ -758,14 +848,16 @@ class Table:
     # проверяем есть ли выигрывший и проигравший
     def check_end_of_game(self):
         if self.is_this_end_of_game():
-            '''
-            Debug of the card deck array
-            '''
-            if self.debug_verbose > 1:
-                for pl_number in range(1, players_number+1):
+            for pl_number in range(1, players_number + 1):
+                self.pl[pl_number].convert_deck_2state()
+                '''
+                Debug of the card deck array
+                '''
+                if self.debug_verbose > 1:
                     print(f'Player number: {pl_number}')
-                    for key, value in self.pl[pl_number].player_deck.items():
-                        print(key, value)
+                    print(self.pl[pl_number].current_state)
+                    # for key, value in self.pl[pl_number].player_deck.items():
+                    #     print(key, value)
             self.congratulations()
             exit(0)
         pass
@@ -798,7 +890,7 @@ class Table:
         Show all cards on desktop (table)
 
         Args:
-            player_number:
+            player_number:  player number
 
         Returns:
             None
@@ -831,7 +923,6 @@ class Table:
         self.player_turn = self.next_player(self.player_turn)
         for player_number in self.players_numbers_lst:
             self.pl[player_number].change_player_turn(self.player_turn)
-
         pass
 
     def next_player(self, p_number):
@@ -918,13 +1009,15 @@ class Table:
             if not self.end_of_deck:
                 for i in range(self.pl[player_number].check_hand_before_round()):
                     self.add_card_2player_hand(player_number)
+            self.pl[player_number].convert_deck_2state()
             '''
             Debug of the card deck array
             '''
             if self.debug_verbose > 1:
                 print(f'Player number: {player_number}')
-                for key, value in self.pl[player_number].player_deck.items():
-                    print(key, value)
+                print(self.pl[player_number].current_state)
+                # for key, value in self.pl[player_number].player_deck.items():
+                #     print(key, value)
             self.pl[player_number].change_game_round(self.game_round)
             self.pl[player_number].change_player_turn(self.player_turn)
 
