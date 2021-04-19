@@ -275,8 +275,6 @@ class Player(Deck):
 
     def convert_deck_2state(self) -> np.array:
         """
-        Args:
-            deck (dict):        deck dictionary
         Returns:
             state (np.array):   deck dictionary converted to state
         """
@@ -341,11 +339,6 @@ class Player(Deck):
         Returns:
             None
         """
-        # for turns in range(5-len(self.round_experience)):
-        #     '''
-        #     Adding more turns if played not 6 pairs of cards
-        #     '''
-        #     self.round_experience.append((self.zeros_state, self.zero_action_idx, self.zero_reward, self.zero_done))
         self.episode_experience.extend(self.round_experience)
         self.round_experience = []
         pass
