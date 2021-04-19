@@ -19,7 +19,7 @@ import collections
 import copy
 import time
 
-__version__ = 0.0028
+__version__ = 0.0031
 
 Experience = collections.namedtuple('Experience', field_names=['state', 'action', 'reward', 'done', 'next_state'])
 
@@ -51,21 +51,27 @@ class ExperienceReplay:
         self.buffer.extend(experience)
         pass
 
+    def show(self):
+        buffer_length = self.get_length()
+        states, actions, rewards, dones, next_states = zip(*[self.buffer[idx] for idx in range(buffer_length)])
+        return (np.array(states), np.array(actions), np.array(rewards, dtype=np.float32),
+                np.array(dones, dtype=np.uint8), np.array(next_states))
+                               
     def sample(self, batch_size):
         indices = np.random.choice(len(self.buffer), batch_size, replace=False)
         states, actions, rewards, dones, next_states = zip(*[self.buffer[idx] for idx in indices])
         return (np.array(states), np.array(actions), np.array(rewards, dtype=np.float32),
                 np.array(dones, dtype=np.uint8), np.array(next_states))
 
-    def save(self, file_path, buffer_len=10000):
+    def save(self, file_path, buffer_length=10000):
         with open(file_path, "wb") as f:
             print('Save exp buffer...')
-            if (len(self.buffer) < self.capacity) and (len(self.buffer) < buffer_len):
-                buffer_len = len(self.buffer)
-            elif len(self.buffer) < buffer_len:
-                buffer_len = len(self.buffer)
+            if (len(self.buffer) < self.capacity) and (len(self.buffer) < buffer_length):
+                buffer_length = self.__len__()
+            elif len(self.buffer) < buffer_length:
+                buffer_length = self.__len__()
             states, actions, rewards, dones, next_states = \
-                zip(*[self.buffer[idx] for idx in range(len(self.buffer) - buffer_len, len(self.buffer))])
+                zip(*[self.buffer[idx] for idx in range(len(self.buffer) - buffer_length, len(self.buffer))])
             pkl.dump([states, actions, rewards, dones, next_states], f)
             del [states, actions, rewards, dones, next_states]
             pass
@@ -105,7 +111,7 @@ class Deck:
     """
     Вектор np.array (
         [0] - Масть [1..4] (включительно)
-        [1] - ранг [6..14] (включительно)
+        [1] - ранг [1..9] (включительно)
         Статус:
         [2] принадлежность игроку [1..6] (включительно)
             - 0 - лежит в колоде
@@ -258,18 +264,16 @@ class Player(Deck):
         True should be added at the end of episode 
         False(0) or True(1)
         '''
-        self.zero_done: bool = False
+        self.zero_done: float = 0
         ''' 
         Zero action index 
         for signal of ending of playing in current episode for this player
         form -1 to 36 
         '''
         self.zero_action_idx: int = 0
-
         pass
 
-    @staticmethod
-    def convert_deck_2state(deck: dict) -> np.array:
+    def convert_deck_2state(self) -> np.array:
         """
         Args:
             deck (dict):        deck dictionary
@@ -277,9 +281,43 @@ class Player(Deck):
             state (np.array):   deck dictionary converted to state
         """
         state = []
-        for value in deck.values():
-            state.append(value)
-        return np.array(state, dtype=np.int16)
+        card_state: list = [0, 0, 0, 0, 0, 0, 0]
+        '''
+        Add Zero action_idx to states (pass)
+        '''
+        state.append(copy.deepcopy(card_state))
+        for card_value in self.player_deck.values():
+            '''
+            Normalize suits data - 4 suits
+            '''
+            card_state[0] = card_value[0]/4
+            '''
+            Normalize rang of card data (9 cards)
+            '''
+            card_state[1] = card_value[1]/9
+            '''
+            Normalize card as property of player (self.players_number)
+            '''
+            card_state[2] = card_value[2]/self.players_number
+            '''
+            Normalize card status (possible statuses = 4 (0 not included))
+            '''
+            card_state[3] = card_value[3]/4
+            '''                    
+            Normalize card graveyard status (zero or 1)
+            do not need normalization
+            '''
+            card_state[4] = card_value[4]
+            '''                                     
+            Normalize round number (???)            
+            '''
+            card_state[5] = card_value[5]
+            '''                                     
+            Normalize card weight (max card_weight=34)
+            '''
+            card_state[6] = card_value[6]/34
+            state.append(copy.deepcopy(card_state))
+        return np.array(state, dtype=np.float32)
 
     def add_turn_experience(self, action_idx) -> None:
         """
@@ -291,8 +329,8 @@ class Player(Deck):
         Returns:
             None:
         """
-        self.turn_state = self.convert_deck_2state(self.player_deck)
-        self.turn_experience = (self.turn_state, action_idx, self.zero_reward, self.zero_done)
+        self.turn_state = self.convert_deck_2state()
+        self.turn_experience: tuple = (self.turn_state, action_idx, self.zero_reward, self.zero_done)
         self.round_experience.append(self.turn_experience)
         pass
 
@@ -312,24 +350,41 @@ class Player(Deck):
         self.round_experience = []
         pass
 
+    @staticmethod
+    def convert_action_idx_2ohe(action_idx):
+        action_ohe = np.zeros((37, 1), dtype=np.float32)
+        action_ohe[action_idx] = 1.0
+        return action_ohe
+
     def add_episode_experience(self, reward):
         reward_decay = 0.99
         temp_reward = 0
+        max_round: int = 0
         next_state = self.zeros_state
         for turn_idx in range(len(self.episode_experience) - 1, -1, -1):
             turn_state, turn_action_idx, turn_reward, turn_done = self.episode_experience[turn_idx]
+            turn_action_idx = self.convert_action_idx_2ohe(turn_action_idx)
             if turn_idx == len(self.episode_experience) - 1:
+                if np.max(turn_state[:, 5]) + 1 > max_round:
+                    max_round = np.max(turn_state[:, 5])
                 temp_reward = copy.copy(reward)
                 next_state = copy.deepcopy(turn_state)
+                '''
+                Normalize q-ty of rounds in next_state
+                '''
+                next_state[:, 5] = next_state[:, 5] / max_round
                 continue
             elif turn_idx == len(self.episode_experience) - 2:
                 turn_done = True
+            '''
+            Normalize q-ty of rounds in state
+            '''
+            turn_state[:, 5] = turn_state[:, 5] / max_round
             if turn_reward == 0:
                 temp_reward = temp_reward * reward_decay
                 turn_reward = temp_reward
             self.episode_buffer.insert(0, (turn_state, turn_action_idx, turn_reward, turn_done, next_state))
             next_state = copy.deepcopy(turn_state)
-            pass
         replay_buffer.extend(self.episode_buffer)
         pass
 
@@ -928,13 +983,13 @@ class Table:
     def check_end_of_game(self):
         if self.is_this_end_of_game():
             for pl_number in range(1, players_number + 1):
-
                 '''
                 Debug of the card deck array
                 '''
                 if self.debug_verbose > 1:
                     print(f'Player number: {pl_number}')
-                    print(self.pl[pl_number].convert_deck_2state(self.pl[pl_number].player_deck))
+                    with np.printoptions(precision=3, suppress=True):
+                        print(self.pl[pl_number].convert_deck_2state())
                     # for key, value in self.pl[pl_number].player_deck.items():
                     #     print(key, value)
             self.congratulations()
@@ -947,7 +1002,12 @@ class Table:
         for player_number in self.players_numbers_lst:
             if self.if_player_hand_and_deck_empty(player_number):
                 if player_number == self.winner:
+                    '''
+                    Add round experience
+                    '''
+                    self.pl[player_number].add_round_experience()
                     self.pl[player_number].add_episode_experience(1.0)
+
                 print(
                     f'Игрок № {player_number}, заканчивает игру. Остается {len(self.players_numbers_lst) - 1} игроков')
                 self.show_desktop()
@@ -955,7 +1015,14 @@ class Table:
                 self.rem_cards_from_desktop()
                 if self.players_number == 2:
                     self.looser = self.next_player(player_number)
-                    self.pl[self.looser].add_episode_experience(-1.0)
+                    # '''
+                    # Add round experience
+                    # '''
+                    # self.pl[player_number].add_round_experience()
+                    # '''
+                    # remarked for testing purpose
+                    # '''
+                    # self.pl[self.looser].add_episode_experience(-1.0)
                     result = True
                 self.one_more_is_out(player_number)
         return result
@@ -964,7 +1031,24 @@ class Table:
         msg = f'Победитель игрок №{self.winner}\nПроигравший игрок №{self.looser}\n' \
               f'Игра закончена за {self.game_round} раундов и {time.time() - start_time:.2f} сек'
         print(msg)
-        print(replay_buffer.sample(replay_buffer.get_length()))
+        if self.debug_verbose > 2:
+            buffer = replay_buffer.show()
+            print('States:')
+            for line in buffer[0]:
+                with np.printoptions(precision=3, suppress=True):
+                    print(line)
+            print('Actions:')
+            for line in buffer[1]:
+                with np.printoptions(precision=3, suppress=True):
+                    print(line)
+            print('Rewards:')
+            print(buffer[2])
+            print('Dones:')
+            print(buffer[3])
+            print('Next states:')
+            for line in buffer[4]:
+                with np.printoptions(precision=3, suppress=True):
+                    print(line)
         pass
 
     #
@@ -1101,7 +1185,8 @@ class Table:
             '''
             if self.debug_verbose > 1:
                 print(f'Player number: {player_number}')
-                print(self.pl[player_number].convert_deck_2state(self.pl[player_number].player_deck))
+                with np.printoptions(precision=3, suppress=True):
+                    print(self.pl[player_number].convert_deck_2state())
                 # for key, value in self.pl[player_number].player_deck.items():
                 #     print(key, value)
             self.pl[player_number].change_game_round(self.game_round)
@@ -1174,7 +1259,6 @@ class Table:
                 self.rem_cards_from_desktop()
                 # Переход хода
                 self.next_turn()
-
                 self.check_end_of_game()
                 # Переход кона,
                 self.next_round()
@@ -1423,3 +1507,4 @@ if __name__ == '__main__':
     start_time = time.time()
     fool_game.set_table()
     fool_game.show_table()
+
