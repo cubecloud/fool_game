@@ -19,7 +19,7 @@ import collections
 import copy
 import time
 
-__version__ = 0.0034
+__version__ = 0.0036
 
 Experience = collections.namedtuple('Experience', field_names=['state', 'action', 'reward', 'done', 'next_state'])
 
@@ -730,9 +730,14 @@ class Table:
         self.game_circle = True
         pass
 
-    # передаем индекс карты из списка self.hidden_playing_deck_order,
-    # ссылаясь на индекс верхней карты колоды
-    def current_card_index(self):
+    def current_card_index(self) -> int:
+        """
+        передаем индекс карты из списка self.hidden_playing_deck_order,
+        ссылаясь на индекс верхней карты колоды
+
+        Returns:
+            card_index (int):   top card in the deck index
+        """
         return self.hidden_playing_deck_order[self.hidden_deck_index]
 
     # Пометить каждую карту из переданного списка,
@@ -756,20 +761,20 @@ class Table:
             """
             action_number = 1
         self.desktop_list.append(index)
-        for player_number in self.players_numbers_lst:
-            self.pl[player_number].desktop_list = self.desktop_list
-            status = self.pl[player_number].get_current_status(index)
+        for player_id in self.players_numbers_lst:
+            self.pl[player_id].desktop_list = self.desktop_list
+            status = self.pl[player_id].get_current_status(index)
             # player number
             status[0] = action_player_number
             # on hand status
             status[1] = action_number
-            self.pl[player_number].change_card_status(index, status)
+            self.pl[player_id].change_card_status(index, status)
         pass
 
     def rem_cards_from_desktop(self):
         self.desktop_list.clear()
-        for player_number in self.players_numbers_lst:
-            self.pl[player_number].desktop_list = self.desktop_list
+        for player_id in self.players_numbers_lst:
+            self.pl[player_id].desktop_list = self.desktop_list
         pass
 
     def show_desktop(self):
@@ -796,18 +801,18 @@ class Table:
             print()
         pass
 
-    def add_card_2player_hand(self, p_number) -> None:
+    def add_card_2player_hand(self, player_number) -> None:
         """
         добавить карту в руку игрока (раздача, забрать
         если не отбился, или из колоды после отбоя)
         Args:
-            p_number:
+            player_number:  add card to player_number hand
 
         Returns:
             None
         """
         if self.hidden_deck_index <= 35 and not self.end_of_deck:
-            self.pl[p_number].get_card(self.current_card_index())
+            self.pl[player_number].get_card(self.current_card_index())
             # Индекс карты в дек листе меняем на следующую карту
             self.hidden_deck_index += 1
             if self.hidden_deck_index == 36:
@@ -817,31 +822,31 @@ class Table:
             self.end_of_deck = True
         pass
 
-    def add_cardlist_2player_hand(self, p_number, cards_list):
+    def add_cardlist_2player_hand(self, player_number, cards_list):
         for index in cards_list:
             # взять карту из листа в руку
-            self.pl[p_number].get_card(index)
-            for player_number in self.players_numbers_lst:
-                if player_number != p_number:
-                    status = self.pl[player_number].get_current_status(index)
+            self.pl[player_number].get_card(index)
+            for player_id in self.players_numbers_lst:
+                if player_id != player_number:
+                    status = self.pl[player_id].get_current_status(index)
                     # player number
-                    status[0] = p_number
+                    status[0] = player_number
                     # on hand status
                     status[1] = 3
                     status[3] = self.game_round
-                    self.pl[player_number].change_card_status(index, status)
+                    self.pl[player_id].change_card_status(index, status)
                 else:
-                    self.pl[player_number].add_player_status(index)
+                    self.pl[player_id].add_player_status(index)
         pass
 
     # Установить козыря для всех игроков
     # (фактически показать его всем)
     def add_trump_card(self):
-        for player_number in self.players_numbers_lst:
+        for player_id in self.players_numbers_lst:
             # Поменять статус на 'Козырь')
             # Добавим карту в базу знаний всех игроков
             # Сделать с индексом козыря (в деке по этому номеру лежит последняя козырная карта в колоде)
-            self.pl[player_number].set_trump(self.current_card_index())
+            self.pl[player_id].set_trump(self.current_card_index())
         self.trump_index = self.current_card_index()
         # перенести в скрытом листе, открытого козыря последним в список, перемешанной деки
         # чтобы он был последним
@@ -856,9 +861,9 @@ class Table:
     def first_turn_choice(self):
         # print ("Идет выбор ходящего первым")
         min_card_index: dict = {}
-        for player_number in self.players_numbers_lst:
-            # print('Игрок',player_number, self.show_cards_list(self.pl[player_number].trumps_from_hand()))
-            min_card_index[player_number] = self.pl[player_number].lowest_trump_from_hand()
+        for player_id in self.players_numbers_lst:
+            # print('Игрок',player_id, self.show_cards_list(self.pl[player_id].trumps_from_hand()))
+            min_card_index[player_id] = self.pl[player_id].lowest_trump_from_hand()
         # Пробуем операцию мин
         try:
             min_card_player = min(min_card_index.keys(), key=(lambda k: min_card_index[k]))
@@ -869,23 +874,23 @@ class Table:
         except (TypeError, ValueError):
             check_player = 0
             check_card = 0
-            for player_number in self.players_numbers_lst:
+            for player_id in self.players_numbers_lst:
                 # если лист пуст ищем дальше по циклу
-                if not min_card_index[player_number]:
+                if not min_card_index[player_id]:
                     continue
                 # если список не пустой проверяем значение и записываем если больше
-                elif min_card_index[player_number] > check_card:
-                    check_card = min_card_index[player_number]
-                    check_player = player_number
+                elif min_card_index[player_id] > check_card:
+                    check_card = min_card_index[player_id]
+                    check_player = player_id
             # если есть игрок с козырем то выводим
             if check_card != 0:
                 min_card_player = check_player
             # Игрока с козырем нет - ищем _любую_ самую младшую карту у игроков (пики, крести, бубны, червы)
             else:
-                for playerNumber1 in self.players_numbers_lst:
-                    # print('Игрок',playerNumber1,
-                    # self.show_cards_list(self.pl[playerNumber1].player_cards_onhand_list))
-                    min_card_index[playerNumber1] = self.pl[playerNumber1].lowest_from_hand()
+                for player_number1 in self.players_numbers_lst:
+                    # print('Игрок',player_number1,
+                    # self.show_cards_list(self.pl[player_number1].player_cards_onhand_list))
+                    min_card_index[player_number1] = self.pl[player_number1].lowest_from_hand()
                 min_card_player = (min(min_card_index.items(), key=lambda x: x[1])[0])
         # print(min_card_index)
         # print (f'Минимальная карта у игрока {min_card_player},
@@ -896,21 +901,21 @@ class Table:
     def set_players(self):
         # Иницианилизируем работу класса игроков и делаем их словарем
         print(f'Кол-во игроков: {self.players_number}')
-        for i in self.players_numbers_lst:
-            if i == 1:
+        for player_id in self.players_numbers_lst:
+            if player_id == 1:
                 # self.pl[1] = Player(1, 1)
                 self.pl[1] = Player(1, 2)
             else:
                 # Тип 2 - Компьютер
-                self.pl[i] = Player(i, 2)
+                self.pl[player_id] = Player(player_id, 2)
         pass
 
     # Инициализируем словарь (массив) с деками игроков
     def table_init(self):
-        for player_number in self.players_numbers_lst:
+        for player_id in self.players_numbers_lst:
             # заносим в словари деки игроков
-            self.pl[player_number].get_deck(self.playing_deck)
-            self.pl[player_number].players_number = self.players_number
+            self.pl[player_id].get_deck(self.playing_deck)
+            self.pl[player_id].players_number = self.players_number
         # устанавливаем индекс карты из колоды на 1
         # это индекс для ###### self.hidden_playing_deck_order ######
         self.hidden_deck_index = 0
@@ -939,23 +944,32 @@ class Table:
         status[0] = player
         # on hand status
         status[1] = 3
-        for player_number in self.players_numbers_lst:
-            self.pl[player_number].change_card_status(index, status)
+        for player_id in self.players_numbers_lst:
+            self.pl[player_id].change_card_status(index, status)
             # self.pl[player_number].change_card_status(index, 'P' + str(player))
         pass
 
-    def set_table(self):
+    def set_table(self, start_table='new'):
         self.set_players()
         self.shuffle()
         self.table_init()
         # print(self.hidden_playing_deck_order)
         # раздача
         for i in range(6):
-            for player_number in self.players_numbers_lst:
+            for player_id in self.players_numbers_lst:
                 # добавляем 1 карту каждому игроку
-                self.add_card_2player_hand(player_number)
+                self.add_card_2player_hand(player_id)
         self.add_trump_card()
-        self.show_first_turn_card()
+        if start_table == 'new':
+            self.show_first_turn_card()
+
+        #   Устанавливаем ход
+        self.game_round = 0
+        self.next_round()
+        # print(f'Раунд № {self.game_round}')
+        # self.pl[1].show_cards_vert_numbered(self.pl[1].player_cards_onhand_list)
+        # print('0. Пас/забрать')
+        # self.show_trump()
         pass
 
     # Нужно переставлять ход ДО вызова.
@@ -995,15 +1009,15 @@ class Table:
     def check_end_of_game(self):
         result = False
         if self.is_this_end_of_game():
-            for pl_number in range(1, players_number + 1):
+            for player_id in range(1, players_number + 1):
                 '''
                 Debug of the card deck array
                 '''
                 if self.debug_verbose > 2:
-                    print(f'Player number: {pl_number}')
+                    print(f'Player number: {player_id}')
                     with np.printoptions(precision=3, suppress=True):
-                        print(self.pl[pl_number].convert_deck_2state())
-                    # for key, value in self.pl[pl_number].player_deck.items():
+                        print(self.pl[player_id].convert_deck_2state())
+                    # for key, value in self.pl[player_id].player_deck.items():
                     #     print(key, value)
             ''' If game is over '''
             result = True
@@ -1014,32 +1028,32 @@ class Table:
     def is_this_end_of_game(self):
         # Проверка окончания игры если какой_либо игрок закончил игру.
         result = False
-        for player_number in self.players_numbers_lst:
-            if self.if_player_hand_and_deck_empty(player_number):
-                if player_number == self.winner:
+        for player_id in self.players_numbers_lst:
+            if self.if_player_hand_and_deck_empty(player_id):
+                if player_id == self.winner:
                     '''
                     Add round experience
                     '''
-                    self.pl[player_number].add_round_experience()
-                    self.pl[player_number].add_episode_experience(1.0)
+                    self.pl[player_id].add_round_experience()
+                    self.pl[player_id].add_episode_experience(1.0)
 
                 print(
-                    f'Игрок № {player_number}, заканчивает игру. Остается {len(self.players_numbers_lst) - 1} игроков')
+                    f'Игрок № {player_id}, заканчивает игру. Остается {len(self.players_numbers_lst) - 1} игроков')
                 self.show_desktop()
                 self.add_2graveyard(self.desktop_list)
                 self.rem_cards_from_desktop()
                 if self.players_number == 2:
-                    self.looser = self.next_player(player_number)
+                    self.looser = self.next_player(player_id)
                     # '''
                     # Add round experience
                     # '''
-                    # self.pl[player_number].add_round_experience()
+                    # self.pl[player_id].add_round_experience()
                     # '''
                     # remarked for testing purpose
                     # '''
                     # self.pl[self.looser].add_episode_experience(-1.0)
                     result = True
-                self.one_more_is_out(player_number)
+                self.one_more_is_out(player_id)
         return result
 
     def congratulations(self):
@@ -1103,13 +1117,13 @@ class Table:
 
     def next_turn(self):
         self.player_turn = self.next_player(self.player_turn)
-        for player_number in self.players_numbers_lst:
-            self.pl[player_number].change_player_turn(self.player_turn)
+        for player_id in self.players_numbers_lst:
+            self.pl[player_id].change_player_turn(self.player_turn)
         pass
 
-    def next_player(self, p_number):
+    def next_player(self, player_number):
         # Индекс должен быть меньше чем в реальный player_number
-        index = self.players_numbers_lst.index(p_number)
+        index = self.players_numbers_lst.index(player_number)
         if index + 1 > len(self.players_numbers_lst) - 1:
             index = 0
             return self.players_numbers_lst[index]
@@ -1118,8 +1132,8 @@ class Table:
             return self.players_numbers_lst[index]
         pass
 
-    def previous_player(self, p_number):
-        index = self.players_numbers_lst.index(p_number)
+    def previous_player(self, player_number):
+        index = self.players_numbers_lst.index(player_number)
         if index - 1 == -1:
             index = len(self.players_numbers_lst) - 1
             return self.players_numbers_lst[index]
@@ -1138,15 +1152,14 @@ class Table:
             return True
         else:
             return False
-        pass
 
     def set_attack_player_pass_flag(self, flag):
         """
         Внимание! Устанавливает флаг, что
         атакующий игрок пасует - ВСЕМ игрокам
         """
-        for player_number in self.players_numbers_lst:
-            self.pl[player_number].attack_player_pass_flag = flag
+        for player_id in self.players_numbers_lst:
+            self.pl[player_id].attack_player_pass_flag = flag
         pass
 
     def set_passive_player_pass_flag(self, player_number, flag):
@@ -1186,26 +1199,27 @@ class Table:
     def next_round(self):
         self.game_round += 1
         self.set_attack_player_pass_flag(False)
-        for player_number in self.players_numbers_lst:
+        for player_id in self.players_numbers_lst:
             '''
             Add round experience 
             '''
-            self.pl[player_number].add_round_experience()
-            self.set_passive_player_pass_flag(player_number, False)
+            self.pl[player_id].add_round_experience()
+            self.set_passive_player_pass_flag(player_id, False)
             if not self.end_of_deck:
-                for i in range(self.pl[player_number].check_hand_before_round()):
-                    self.add_card_2player_hand(player_number)
+                for i in range(self.pl[player_id].check_hand_before_round()):
+                    self.add_card_2player_hand(player_id)
             '''
             Debug of the card deck array
             '''
             if self.debug_verbose > 1:
-                print(f'Player number: {player_number}')
+                print(f'Player number: {player_id}')
                 with np.printoptions(precision=3, suppress=True):
-                    print(self.pl[player_number].convert_deck_2state())
-                # for key, value in self.pl[player_number].player_deck.items():
+                    print(self.pl[player_id].convert_deck_2state())
+                # for key, value in self.pl[player_id].player_deck.items():
                 #     print(key, value)
-            self.pl[player_number].change_game_round(self.game_round)
-            self.pl[player_number].change_player_turn(self.player_turn)
+            self.pl[player_id].change_game_round(self.game_round)
+            self.pl[player_id].change_player_turn(self.player_turn)
+        pass
 
     def if_human_pause(self, player_number):
         # flag = False
@@ -1479,7 +1493,7 @@ class Table:
             return
         pass
 
-    def show_table(self):
+    def play_episode(self):
         """
         Main game circle
         Show the table. Turning players turns, turning rounds, checking end of the game
@@ -1487,14 +1501,7 @@ class Table:
         Returns:
             None
         """
-        #   Устанавливаем ход
-        self.game_round = 0
-        self.next_round()
-        # print(f'Раунд № {self.game_round}')
-        # self.pl[1].show_cards_vert_numbered(self.pl[1].player_cards_onhand_list)
-        # print('0. Пас/забрать')
-        # self.show_trump()
-        """
+        '''
         Проходим по следующему циклу хода
         Атакующий ходит, защищающийся отбивается
         если отбивание произошло, цикл повторяется:
@@ -1502,7 +1509,7 @@ class Table:
         1. пока на столе не будет, 6 пар карт
         2. защищающийся скажет 0 (забираю)
         3. атакующий скажет пас, и пасивный игрок скажет пас тоже
-        """
+        '''
 
         self.current_player_id = copy.copy(self.player_turn)
         while self.game_circle:
@@ -1771,11 +1778,68 @@ class Table:
                 #     self.current_player_id = self.next_player(self.current_player_id)
                 #     continue
 
+    def play_step(self):
+        """
+        ONE game step
+        Show the table. Turning players turns, turning rounds, checking end of the game
+
+        Returns:
+            None
+        """
+        '''
+        Проходим по следующему циклу хода
+        Атакующий ходит, защищающийся отбивается
+        если отбивание произошло, цикл повторяется:
+
+        1. пока на столе не будет, 6 пар карт
+        2. защищающийся скажет 0 (забираю)
+        3. атакующий скажет пас, и пасивный игрок скажет пас тоже
+        '''
+
+        self.current_player_id = copy.copy(self.player_turn)
+        while self.game_circle:
+            if len(self.desktop_list) == 12:
+                print(
+                    f'Игрок {self.next_player(self.player_turn)} '
+                    f'{self.pl[self.next_player(self.player_turn)].player_name} '
+                    f'отбивается (6 пар), карты уходят в сброс',
+                    self.pl[self.current_player_id].show_cards_hor(self.desktop_list))
+                self.add_2graveyard(self.desktop_list)
+                # убираем карты с десктопа
+                self.rem_cards_from_desktop()
+                # Переход хода
+                self.next_turn()
+                if self.check_end_of_game():
+                    continue
+                # Переход кона,
+                self.next_round()
+                # Смена игрока и переход ему хода
+                self.current_player_id = copy.copy(self.player_turn)
+                # self.if_human_pause(player_number)
+            else:
+                self.show_all_cards(self.current_player_id)
+                self.action = self.take_action(self.current_player_id)
+                self.result = self.pl[self.current_player_id].turn(self.action)
+
+                if self.action == 'Attack':
+                    self.current_player_attack_action()
+                    continue
+                if self.action == 'Defend':
+                    self.current_player_defend_action()
+                    continue
+                if self.action == 'Passive':
+                    self.current_player_passive_action()
+                    continue
+
 
 class Environment(Table):
     def __init__(self, players_qty):
         self.start_players_qty = players_qty
         super().__init__(players_qty)
+        self.game_idx: int = 0
+        self.game_idxs: list = []
+        self.game_winners: list = []
+        self.game_loosers: list = []
         pass
 
     def reset(self):
@@ -1784,8 +1848,24 @@ class Environment(Table):
 
     def start_game(self):
         self.start_time = time.time()
-        self.set_table()
-        self.show_table()
+        self.set_table(start_table='new')
+        self.play_episode()
+        self.game_idx += 1
+        self.game_idxs.append(int(self.game_idx))
+        self.game_winners.append(int(self.winner))
+        self.game_loosers.append(int(self.looser))
+        pass
+
+    def next_game(self):
+        self.reset()
+        self.set_table(start_table='next')
+        self.player_turn = self.previous_player(self.game_loosers[0])
+        self.current_player_id = int(self.player_turn)
+        self.play_episode()
+        self.game_idx += 1
+        self.game_idxs.append(int(self.game_idx))
+        self.game_winners.append(int(self.winner))
+        self.game_loosers.append(int(self.looser))
         pass
 
 
@@ -1800,7 +1880,6 @@ if __name__ == '__main__':
             break
         except (TypeError, ValueError):
             print("Неправильный ввод")
-    fool_game = Table(players_number)
-    start_time = time.time()
-    fool_game.set_table()
-    fool_game.show_table()
+    fool_game = Environment(players_number)
+    fool_game.start_game()
+    fool_game.next_game()
