@@ -19,7 +19,7 @@ import collections
 import copy
 import time
 
-__version__ = 0.0032
+__version__ = 0.0033
 
 Experience = collections.namedtuple('Experience', field_names=['state', 'action', 'reward', 'done', 'next_state'])
 
@@ -161,7 +161,7 @@ class Deck:
         self.suit_chars = {1: 'П', 2: 'К', 3: 'Б', 4: 'Ч'}
         self.suits_names = {1: "Пики", 2: "Крести", 3: "Бубны", 4: "Черви"}
         self.suits_icons = {'П': '\u2660', 'К': '\u2663', 'Б': '\u2666', 'Ч': '\u2665'}
-        self.debug_verbose = 3
+        self.debug_verbose = 1
 
     pass
 
@@ -703,12 +703,12 @@ class Player(Deck):
 
 
 class Table:
-    def __init__(self, players_number):
+    def __init__(self, players_qty):
         # кол-во игроков
         self.winner = 0
         self.looser = 0
         self.dd = Deck()
-        self.players_number = players_number
+        self.players_number = players_qty
         self.playing_deck = self.dd.player_deck
         self.desktop_list: list = []
         self.end_of_deck = False
@@ -718,13 +718,14 @@ class Table:
         self.hidden_playing_deck_order: list = []
         self.trump_index: int = -1
         self.player_turn: int = 0
+        self.current_player_id: int = 0
         self.game_round: int = 0
         self.action: str = str()
         self.attack_player_empty_hand_flag = False
         self.pl: dict = {}
         for i in range(1, self.players_number + 1):
             self.players_numbers_lst.append(i)
-        self.debug_verbose = 3
+        self.debug_verbose = 1
         self.start_time = time.time()
         self.game_circle = True
         pass
@@ -994,7 +995,7 @@ class Table:
                 '''
                 Debug of the card deck array
                 '''
-                if self.debug_verbose > 1:
+                if self.debug_verbose > 2:
                     print(f'Player number: {pl_number}')
                     with np.printoptions(precision=3, suppress=True):
                         print(self.pl[pl_number].convert_deck_2state())
@@ -1078,7 +1079,7 @@ class Table:
         #     print(f'Игрок {i}', self.pl[i].show_cards_hor(self.pl[i].player_cards_onhand_list))
         print(f'Раунд № {self.game_round}')
         print('В колоде карт: ' + str(35 - self.hidden_deck_index))
-        if self.debug_verbose > 1:
+        if self.debug_verbose > 0:
             print(f'Индексы перемешанной колоды:\n{self.hidden_playing_deck_order}')
             for pl_number in self.players_numbers_lst:
                 print(f'Player number № {pl_number}:{self.pl[pl_number].player_cards_onhand_list}')
@@ -1237,10 +1238,96 @@ class Table:
             action = 'Passive'
         return action
 
-    def attack_action(self, player_number):
+    def current_player_attack_action(self):
+        if self.result > 0:
+            self.attack_player_empty_hand_flag = False
+            self.add_card_2desktop(self.result, self.action, self.current_player_id)
+            self.pl[self.current_player_id].add_attack_status(self.result)
+            self.pl[self.current_player_id].player_cards_onhand_list.remove(self.result)
 
+            ''' Save data about turn experience, with action_idx (self.result) '''
+            self.pl[self.current_player_id].add_turn_experience(self.result)
 
-        return True
+            # print(f'Ход игрока {player_number}
+            # {self.pl[player_number].player_name} - {self.pl[player_number].show_card(result)}')
+            print(
+                f'Ход игрока {self.current_player_id} {self.pl[self.current_player_id].player_name} под игрока '
+                f'{self.next_player(self.current_player_id)} '
+                f'{self.pl[self.current_player_id].show_card(self.result)}')
+            # print (f'Атака игрока {player_number}',self.pl[player_number].show_card(result))
+            # print ('Десктоп', self.desktop_list)
+            # передача по кругу следующему игроку
+            self.current_player_id = self.next_player(self.current_player_id)
+            # выставляем флаг, что мы не пасуем
+            self.set_attack_player_pass_flag(False)
+            # print ('PN',player_number, 'PT',self.player_turn)
+            # self.show_all_cards()
+            # self.if_human_pause(player_number)
+            # if self.if_player_hand_and_deck_empty(player_number):
+            #     self.attack_player_empty_hand_flag = True
+            return
+        elif self.result == 0:
+            ''' if only 2 players and the player action is pass (self.result == 0) '''
+            if self.players_number == 2:
+                # Карты уходят в сброс того что входит
+                print(
+                    f'Игрок {self.current_player_id} {self.pl[self.current_player_id].player_name} пасует, '
+                    f'карты уходят в сброс', self.pl[self.current_player_id].show_cards_hor(self.desktop_list))
+                self.add_2graveyard(self.desktop_list)
+                # убираем карты с десктопа
+                self.rem_cards_from_desktop()
+
+                ''' Save data about turn experience, with action_idx (self.result) '''
+                self.pl[self.current_player_id].add_turn_experience(self.result)
+
+                # Переход хода
+                self.next_turn()
+                if self.check_end_of_game():
+                    return
+                # Переход кона,
+                self.next_round()
+                self.current_player_id = copy.copy(self.player_turn)
+                return
+            # Проверяем флаги, что мы уже пасовали
+            # и пассивные игроки пасовали и можно отправить карты в сброс
+            elif self.players_number > 2 and \
+                    self.check_passive_player_pass_flag() and \
+                    self.check_attack_player_pass_flag():
+                # Карты уходят в сброс
+                print(f'Карты уходят в сброс',
+                      self.pl[self.current_player_id].show_cards_hor(self.desktop_list))
+                self.add_2graveyard(self.desktop_list)
+                # убираем карты с десктопа
+                self.rem_cards_from_desktop()
+
+                ''' Save data about turn experience, with action_idx (self.result) '''
+                self.pl[self.current_player_id].add_turn_experience(self.result)
+
+                # Переход хода
+                self.next_turn()
+                # если этот игрок
+                if self.check_end_of_game():
+                    return
+                # Переход кона,
+                self.next_round()
+                # Смена игрока и переход ему хода
+                self.current_player_id = copy.copy(self.player_turn)
+                return
+            # если в сброс карты не отправились, то....
+            elif self.players_number > 2:
+                # мы пасуем, но может сходить следующий игрок.
+                # Поэтому мы передаем ход через 1 игрока (отбивающегося)
+                print(f'Игрок {self.current_player_id} '
+                      f'{self.pl[self.current_player_id].player_name} пасует, можно подбрасывать')
+
+                ''' Save data about turn experience, with action_idx (self.result) '''
+                self.pl[self.current_player_id].add_turn_experience(self.result)
+
+                self.current_player_id = self.next_player(self.next_player(self.current_player_id))
+                # и выставляем флаг, что мы пасуем
+                self.set_attack_player_pass_flag(True)
+            return
+        pass
 
     def show_table(self):
         """
@@ -1267,14 +1354,14 @@ class Table:
         3. атакующий скажет пас, и пасивный игрок скажет пас тоже
         """
 
-        player_number = self.player_turn
+        self.current_player_id = copy.copy(self.player_turn)
         while self.game_circle:
             if len(self.desktop_list) == 12:
                 print(
                     f'Игрок {self.next_player(self.player_turn)} '
                     f'{self.pl[self.next_player(self.player_turn)].player_name} '
                     f'отбивается (6 пар), карты уходят в сброс',
-                    self.pl[player_number].show_cards_hor(self.desktop_list))
+                    self.pl[self.current_player_id].show_cards_hor(self.desktop_list))
                 self.add_2graveyard(self.desktop_list)
                 # убираем карты с десктопа
                 self.rem_cards_from_desktop()
@@ -1285,117 +1372,122 @@ class Table:
                 # Переход кона,
                 self.next_round()
                 # Смена игрока и переход ему хода
-                player_number = self.player_turn
+                self.current_player_id = copy.copy(self.player_turn)
                 # self.if_human_pause(player_number)
             else:
 
-                self.show_all_cards(player_number)
-                self.action = self.take_action(player_number)
-                self.result = self.pl[player_number].turn(self.action)
+                self.show_all_cards(self.current_player_id)
+                self.action = self.take_action(self.current_player_id)
+                self.result = self.pl[self.current_player_id].turn(self.action)
 
-                if self.action == 'Attack' and self.result > 0:
-                    self.attack_player_empty_hand_flag = False
-                    self.add_card_2desktop(self.result, self.action, player_number)
-                    self.pl[player_number].add_attack_status(self.result)
-                    self.pl[player_number].player_cards_onhand_list.remove(self.result)
-
-                    ''' Save data about turn experience, with action_idx (self.result) '''
-                    self.pl[player_number].add_turn_experience(self.result)
-
-                    # print(f'Ход игрока {player_number}
-                    # {self.pl[player_number].player_name} - {self.pl[player_number].show_card(result)}')
-                    print(
-                        f'Ход игрока {player_number} {self.pl[player_number].player_name} под игрока '
-                        f'{self.next_player(player_number)} {self.pl[player_number].show_card(self.result)}')
-                    # print (f'Атака игрока {player_number}',self.pl[player_number].show_card(result))
-                    # print ('Десктоп', self.desktop_list)
-                    # передача по кругу следующему игроку
-                    player_number = self.next_player(player_number)
-                    # выставляем флаг, что мы не пасуем
-                    self.set_attack_player_pass_flag(False)
-                    # print ('PN',player_number, 'PT',self.player_turn)
-                    # self.show_all_cards()
-                    # self.if_human_pause(player_number)
-                    # if self.if_player_hand_and_deck_empty(player_number):
-                    #     self.attack_player_empty_hand_flag = True
+                if self.action == 'Attack':
+                    self.current_player_attack_action()
                     continue
-                elif self.action == 'Attack' and self.result == 0:
-                    ''' if only 2 players and the player action is pass (self.result == 0) '''
-                    if self.players_number == 2:
-                        # Карты уходят в сброс того что входит
-                        print(
-                            f'Игрок {player_number} {self.pl[player_number].player_name} пасует, карты уходят в сброс',
-                            self.pl[player_number].show_cards_hor(self.desktop_list))
-                        self.add_2graveyard(self.desktop_list)
-                        # убираем карты с десктопа
-                        self.rem_cards_from_desktop()
-
-                        ''' Save data about turn experience, with action_idx (self.result) '''
-                        self.pl[player_number].add_turn_experience(self.result)
-
-                        # Переход хода
-                        self.next_turn()
-                        if self.check_end_of_game():
-                            continue
-                        # Переход кона,
-                        self.next_round()
-                        player_number = self.player_turn
-                        continue
-                    # Проверяем флаги, что мы уже пасовали
-                    # и пассивные игроки пасовали и можно отправить карты в сброс
-                    elif self.players_number > 2 and \
-                            self.check_passive_player_pass_flag() and \
-                            self.check_attack_player_pass_flag():
-                        # Карты уходят в сброс
-                        print(f'Карты уходят в сброс', self.pl[player_number].show_cards_hor(self.desktop_list))
-                        self.add_2graveyard(self.desktop_list)
-                        # убираем карты с десктопа
-                        self.rem_cards_from_desktop()
-
-                        ''' Save data about turn experience, with action_idx (self.result) '''
-                        self.pl[player_number].add_turn_experience(self.result)
-
-                        # Переход хода
-                        self.next_turn()
-                        # если этот игрок
-                        if self.check_end_of_game():
-                            continue
-                        # Переход кона,
-                        self.next_round()
-                        # Смена игрока и переход ему хода
-                        player_number = self.player_turn
-                        continue
-                    # если в сброс карты не отправились, то....
-                    elif self.players_number > 2:
-                        # мы пасуем, но может сходить следующий игрок.
-                        # Поэтому мы передаем ход через 1 игрока (отбивающегося)
-                        print(f'Игрок {player_number} {self.pl[player_number].player_name} пасует, можно подбрасывать')
-
-                        ''' Save data about turn experience, with action_idx (self.result) '''
-                        self.pl[player_number].add_turn_experience(self.result)
-
-                        player_number = self.next_player(self.next_player(player_number))
-                        # и выставляем флаг, что мы пасуем
-                        self.set_attack_player_pass_flag(True)
-                    continue
+                # if self.action == 'Attack' and self.result > 0:
+                #     self.attack_player_empty_hand_flag = False
+                #     self.add_card_2desktop(self.result, self.action, self.current_player_id)
+                #     self.pl[self.current_player_id].add_attack_status(self.result)
+                #     self.pl[self.current_player_id].player_cards_onhand_list.remove(self.result)
+                #
+                #     ''' Save data about turn experience, with action_idx (self.result) '''
+                #     self.pl[self.current_player_id].add_turn_experience(self.result)
+                #
+                #     # print(f'Ход игрока {player_number}
+                #     # {self.pl[player_number].player_name} - {self.pl[player_number].show_card(result)}')
+                #     print(
+                #         f'Ход игрока {self.current_player_id} {self.pl[self.current_player_id].player_name} под игрока '
+                #         f'{self.next_player(self.current_player_id)} '
+                #         f'{self.pl[self.current_player_id].show_card(self.result)}')
+                #     # print (f'Атака игрока {player_number}',self.pl[player_number].show_card(result))
+                #     # print ('Десктоп', self.desktop_list)
+                #     # передача по кругу следующему игроку
+                #     self.current_player_id = self.next_player(self.current_player_id)
+                #     # выставляем флаг, что мы не пасуем
+                #     self.set_attack_player_pass_flag(False)
+                #     # print ('PN',player_number, 'PT',self.player_turn)
+                #     # self.show_all_cards()
+                #     # self.if_human_pause(player_number)
+                #     # if self.if_player_hand_and_deck_empty(player_number):
+                #     #     self.attack_player_empty_hand_flag = True
+                #     continue
+                # elif self.action == 'Attack' and self.result == 0:
+                #     ''' if only 2 players and the player action is pass (self.result == 0) '''
+                #     if self.players_number == 2:
+                #         # Карты уходят в сброс того что входит
+                #         print(
+                #             f'Игрок {self.current_player_id} {self.pl[self.current_player_id].player_name} пасует, '
+                #             f'карты уходят в сброс', self.pl[self.current_player_id].show_cards_hor(self.desktop_list))
+                #         self.add_2graveyard(self.desktop_list)
+                #         # убираем карты с десктопа
+                #         self.rem_cards_from_desktop()
+                #
+                #         ''' Save data about turn experience, with action_idx (self.result) '''
+                #         self.pl[self.current_player_id].add_turn_experience(self.result)
+                #
+                #         # Переход хода
+                #         self.next_turn()
+                #         if self.check_end_of_game():
+                #             continue
+                #         # Переход кона,
+                #         self.next_round()
+                #         self.current_player_id = copy.copy(self.player_turn)
+                #         continue
+                #     # Проверяем флаги, что мы уже пасовали
+                #     # и пассивные игроки пасовали и можно отправить карты в сброс
+                #     elif self.players_number > 2 and \
+                #             self.check_passive_player_pass_flag() and \
+                #             self.check_attack_player_pass_flag():
+                #         # Карты уходят в сброс
+                #         print(f'Карты уходят в сброс',
+                #               self.pl[self.current_player_id].show_cards_hor(self.desktop_list))
+                #         self.add_2graveyard(self.desktop_list)
+                #         # убираем карты с десктопа
+                #         self.rem_cards_from_desktop()
+                #
+                #         ''' Save data about turn experience, with action_idx (self.result) '''
+                #         self.pl[self.current_player_id].add_turn_experience(self.result)
+                #
+                #         # Переход хода
+                #         self.next_turn()
+                #         # если этот игрок
+                #         if self.check_end_of_game():
+                #             continue
+                #         # Переход кона,
+                #         self.next_round()
+                #         # Смена игрока и переход ему хода
+                #         self.current_player_id = copy.copy(self.player_turn)
+                #         continue
+                #     # если в сброс карты не отправились, то....
+                #     elif self.players_number > 2:
+                #         # мы пасуем, но может сходить следующий игрок.
+                #         # Поэтому мы передаем ход через 1 игрока (отбивающегося)
+                #         print(f'Игрок {self.current_player_id} '
+                #               f'{self.pl[self.current_player_id].player_name} пасует, можно подбрасывать')
+                #
+                #         ''' Save data about turn experience, with action_idx (self.result) '''
+                #         self.pl[self.current_player_id].add_turn_experience(self.result)
+                #
+                #         self.current_player_id = self.next_player(self.next_player(self.current_player_id))
+                #         # и выставляем флаг, что мы пасуем
+                #         self.set_attack_player_pass_flag(True)
+                #     continue
 
                 # self.show_all_cards(player_number)
                 # self.action, self.result = self.pl[player_number].turn()
                 if self.action == 'Defend' and self.result > 0:
-                    self.pl[player_number].add_defending_status(self.result)
+                    self.pl[self.current_player_id].add_defending_status(self.result)
                     # print(self.pl[player_number].player_cards_onhand_list, result)
-                    self.pl[player_number].player_cards_onhand_list.remove(self.result)
-                    self.add_card_2desktop(self.result, self.action, player_number)
+                    self.pl[self.current_player_id].player_cards_onhand_list.remove(self.result)
+                    self.add_card_2desktop(self.result, self.action, self.current_player_id)
 
                     ''' Save data about turn experience, with action_idx (self.result) '''
-                    self.pl[player_number].add_turn_experience(self.result)
-
+                    self.pl[self.current_player_id].add_turn_experience(self.result)
                     # print(
                     #     f'Игрок {player_number}
                     #     {self.pl[player_number].player_name} отбивается - {self.pl[player_number].show_card(result)}')
                     print(
-                        f'Игрок {player_number} {self.pl[player_number].player_name} '
-                        f'отбивается {self.pl[player_number].show_card(self.result)}')
+                        f'Игрок {self.current_player_id} {self.pl[self.current_player_id].player_name} '
+                        f'отбивается {self.pl[self.current_player_id].show_card(self.result)}')
                     # print ('Десктоп', self.desktop_list)
 
                     # print ('PN',player_number, 'PT',self.player_turn)
@@ -1406,30 +1498,30 @@ class Table:
                     - мы выходим из игры и нас исключают из списка играющих. Остальные играют дальше
                     Переход хода идет на следующего игрока (следующего за отбивающимся)
                     '''
-                    if self.if_player_hand_and_deck_empty(player_number) or \
+                    if self.if_player_hand_and_deck_empty(self.current_player_id) or \
                             ((35 - self.hidden_deck_index) < len(self.desktop_list) // 2 and
-                             (len(self.pl[player_number].player_cards_onhand_list) == 0)):
+                             (len(self.pl[self.current_player_id].player_cards_onhand_list) == 0)):
                         if self.players_number != 2:
                             self.next_turn()
                         self.next_turn()
                         if self.check_end_of_game():
                             continue
                         self.next_round()
-                        player_number = self.player_turn
+                        self.current_player_id = copy.copy(self.player_turn)
                         continue
                     # передача по кругу следующему игроку
-                    player_number = self.next_player(player_number)
+                    self.current_player_id = self.next_player(self.current_player_id)
                     continue
                 elif self.action == 'Defend' and self.result == 0:
                     # Если забираем карты (нет отбоя)
-                    print(f'Игрок {player_number} {self.pl[player_number].player_name} забирает',
-                          self.pl[player_number].show_cards_hor(self.desktop_list))
+                    print(f'Игрок {self.current_player_id} {self.pl[self.current_player_id].player_name} забирает',
+                          self.pl[self.current_player_id].show_cards_hor(self.desktop_list))
 
                     ''' Мы забрали карты со стола '''
-                    self.add_cardlist_2player_hand(player_number, self.desktop_list)
+                    self.add_cardlist_2player_hand(self.current_player_id, self.desktop_list)
 
                     ''' Save data about turn experience, with action_idx (self.result) '''
-                    self.pl[player_number].add_turn_experience(self.result)
+                    self.pl[self.current_player_id].add_turn_experience(self.result)
 
                     # проверяем на наличие карт
                     # если игроков 2 и пас то, если 2 игрока просто следующий кон,
@@ -1443,7 +1535,7 @@ class Table:
                         self.next_round()
                         # Перехода хода нет - ход остается у прежнего игрока
                         # передаем ход ему обратно
-                        player_number = self.player_turn
+                        self.current_player_id = self.player_turn
                     elif self.players_number > 2:
                         # если игроков больше 2-х,
 
@@ -1457,15 +1549,15 @@ class Table:
                         # смена раунда
                         self.next_round()
                         # ходить будет игрок которому передали ход
-                        player_number = self.player_turn
+                        self.current_player_id = copy.copy(self.player_turn)
                     # self.if_human_pause(player_number)
                     elif self.action == 'Defend' and self.result < 0:
                         # пропускаем ход (к пассивному игроку)
 
                         ''' Save data about turn experience, with action_idx (self.result) '''
-                        self.pl[player_number].add_turn_experience(self.result)
+                        self.pl[self.current_player_id].add_turn_experience(self.result)
 
-                        player_number = self.next_player(player_number)
+                        self.current_player_id = self.next_player(self.current_player_id)
                     # self.show_all_cards(player_number)
                     # self.action, self.result = self.pl[player_number].turn()
                     continue
@@ -1475,51 +1567,53 @@ class Table:
                     выставляем флаг, что _не_ пасуем
                     если атакующий игрок пасует и на столе меньше 11 (то есть 10) карт
                     '''
-                    self.pl[player_number].add_attack_status(self.result)
-                    self.pl[player_number].player_cards_onhand_list.remove(self.result)
-                    self.add_card_2desktop(self.result, self.action, player_number)
+                    self.pl[self.current_player_id].add_attack_status(self.result)
+                    self.pl[self.current_player_id].player_cards_onhand_list.remove(self.result)
+                    self.add_card_2desktop(self.result, self.action, self.current_player_id)
 
                     ''' Save data about turn experience, with action_idx (self.result) '''
-                    self.pl[player_number].add_turn_experience(self.result)
+                    self.pl[self.current_player_id].add_turn_experience(self.result)
 
                     # print(f'Подброс от игрока {player_number} - {self.pl[player_number].show_card(result)}')
-                    print(f'Подброс от игрока {player_number} {self.pl[player_number].show_card(self.result)}')
+                    print(f'Подброс от игрока {self.current_player_id} '
+                          f'{self.pl[self.current_player_id].show_card(self.result)}')
                     # print ('Десктоп', self.desktop_list)
                     # Пассивный игрок сходил, ставим флаг
-                    self.set_passive_player_pass_flag(player_number, False)
+                    self.set_passive_player_pass_flag(self.current_player_id, False)
                     # Переставляем флаг пасующего атакующего на - False
                     self.set_attack_player_pass_flag(False)
                     # передача отбивающемуся
-                    player_number = self.next_player(self.player_turn)
+                    self.current_player_id = self.next_player(self.player_turn)
                     # self.if_human_pause(player_number)
                     continue
                 elif self.action == 'Passive' and self.result == 0:
                     ''' Save data about turn experience, with action_idx (self.result) '''
-                    self.pl[player_number].add_turn_experience(self.result)
+                    self.pl[self.current_player_id].add_turn_experience(self.result)
 
                     # мы пасуем
-                    print(f'Игрок {player_number} {self.pl[player_number].player_name} тоже пасует')
+                    print(f'Игрок {self.current_player_id} {self.pl[self.current_player_id].player_name} тоже пасует')
                     # игрок не ходит, ставим флаг
-                    self.set_passive_player_pass_flag(player_number, True)
+                    self.set_passive_player_pass_flag(self.current_player_id, True)
                     # print ('Десктоп', self.desktop_list)
                     '''
                     Пасивный игрок не решает о переходе хода,
                     только атакующий. Поскольку мы только подбрасываем
                     здесь только передача по кругу следующему игроку
                     '''
-                    player_number = self.next_player(player_number)
+                    self.current_player_id = self.next_player(self.current_player_id)
                     # self.if_human_pause(player_number)
                     # self.show_all_cards()
                     continue
+
                 elif self.action == 'Passive' and self.result < 0:
                     ''' Save data about turn experience, with action_idx (self.result) '''
-                    self.pl[player_number].add_turn_experience(self.result)
+                    self.pl[self.current_player_id].add_turn_experience(self.result)
 
                     print(
-                        f'Игрок {player_number} {self.pl[player_number].player_name} '
+                        f'Игрок {self.current_player_id} {self.pl[self.current_player_id].player_name} '
                         f'пропускает ход, ждем сигнал от атакующего')
-                    self.set_passive_player_pass_flag(player_number, False)
-                    player_number = self.next_player(player_number)
+                    self.set_passive_player_pass_flag(self.current_player_id, False)
+                    self.current_player_id = self.next_player(self.current_player_id)
                     continue
 
 
@@ -1538,7 +1632,6 @@ class Environment(Table):
         self.set_table()
         self.show_table()
         pass
-
 
 
 # Основное тело, перенести потом в инит часть логики
