@@ -12,14 +12,14 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 
-from random import shuffle
+import random
 import numpy as np
 import pickle as pkl
 import collections
 import copy
 import time
 
-__version__ = 0.0040
+__version__ = 0.0043
 
 Experience = collections.namedtuple('Experience', field_names=['state', 'action', 'reward', 'done', 'next_state'])
 
@@ -499,12 +499,18 @@ class Player(Deck):
         self.add_player_status(index)
         pass
 
-    # возвращает кол-во карт необходимое взять в руку игроку из колоды.
-    def check_hand_before_round(self):
-        temp = 6 - (len(self.player_cards_onhand_list))
-        if temp < 0:
-            temp = 0
-        return temp
+    def check_hand_before_round(self) -> int:
+        """
+        Returns qty of cards player need to get to have "full" hand
+
+        Returns:
+            temp (int): qty of cards to have "full" hand
+        """
+
+        cards_qty = 6 - (len(self.player_cards_onhand_list))
+        if cards_qty < 0:
+            cards_qty = 0
+        return cards_qty
 
     #  это ход игрока
     def turn(self, action):
@@ -580,7 +586,7 @@ class Player(Deck):
                 result = -1
                 return result
             # возвращаем действие и индекс карты (или пас/взять)
-            result = -1
+            # result = -1
         return result
 
     def low_weight_card(self, c_list):
@@ -595,7 +601,7 @@ class Player(Deck):
             low_card = 0
         return low_card
 
-    def attacking(self):
+    def attacking_low_weight(self):
         # если на столе уже что-то есть
         if len(self.desktop_list) > 0:
             attack_list = self.get_validated_attack_list()
@@ -607,7 +613,24 @@ class Player(Deck):
             result = self.low_weight_card(self.player_cards_onhand_list)
         return result
 
-    def defending(self):
+    def attacking_random(self):
+        # если на столе уже что-то есть
+        if len(self.desktop_list) > 0:
+            attack_list = self.get_validated_attack_list()
+            if len(attack_list) > 0:
+                ''' 
+                Add to random choice one more option if we have something on table 
+                0 - pass
+                '''
+                attack_list.append(0)
+                result = random.choice(attack_list)
+            else:
+                result = 0
+        else:
+            result = random.choice(self.player_cards_onhand_list)
+        return result
+
+    def defending_low_weight(self):
         if not self.attack_player_pass_flag or not self.passive_player_pass_flag:
             check_parity = (len(self.desktop_list) + 1) % 2
             if check_parity == 0:
@@ -626,12 +649,54 @@ class Player(Deck):
             result = -1
         return result
 
+    def defending_random(self):
+        if not self.attack_player_pass_flag or not self.passive_player_pass_flag:
+            check_parity = (len(self.desktop_list) + 1) % 2
+            if check_parity == 0:
+                # Последняя карта в десктоп листе
+                attacking_card = self.desktop_list[(len(self.desktop_list)) - 1]
+                # print ('Defending', defending_card)
+                defend_list = self.get_validated_defend_list(attacking_card)
+                if len(defend_list) > 0:
+                    ''' 
+                    Add to random choice one more option 
+                    0 - get cards
+                    '''
+                    defend_list.append(0)
+                    result = random.choice(defend_list)
+                else:
+                    result = 0
+            else:
+                result = -1
+        else:
+            # если мы ждем то пропускаем к следующему игроку (например когда пасует атакующий)
+            result = -1
+        return result
+
     # Атака пассивного компьютера/игрока
-    def passive_attacking(self):
+    def passive_attacking_low_weight(self):
         if (0 < len(self.desktop_list) < 11) and self.attack_player_pass_flag:
             attack_list = self.get_validated_attack_list()
             if len(attack_list) > 0:
+
                 result = self.low_weight_card(attack_list)
+            else:
+                result = 0
+            return result
+        else:
+            result = -1
+            return result
+
+    def passive_attacking_random(self):
+        if (0 < len(self.desktop_list) < 11) and self.attack_player_pass_flag:
+            attack_list = self.get_validated_attack_list()
+            if len(attack_list) > 0:
+                ''' 
+                Add to random choice one more option if we have something on table 
+                0 - pass
+                '''
+                attack_list.append(0)
+                result = random.choice(attack_list)
             else:
                 result = 0
             return result
@@ -642,14 +707,23 @@ class Player(Deck):
     # Возвращает индекс карты или в случае
     def analyze(self):
         if self.action == 'Attack':
-            r_index = self.attacking()
+            if random.random() > 0.9:
+                r_index = self.attacking_low_weight()
+            else:
+                r_index = self.attacking_random()
         elif self.action == 'Defend':
-            r_index = self.defending()
+            if random.random() > 0.9:
+                r_index = self.defending_low_weight()
+            else:
+                r_index = self.defending_random()
         else:
             """
             self.action == 'Passive':
             """
-            r_index = self.passive_attacking()
+            if random.random() > 0.9:
+                r_index = self.passive_attacking_low_weight()
+            else:
+                r_index = self.passive_attacking_random()
         return r_index
 
     def set_trump(self, index):
@@ -933,7 +1007,7 @@ class Table:
         # Это лист индексов колоды карт который отражает фактически колоду
         self.hidden_playing_deck_order = list(self.playing_deck.keys())
         # А теперь перемешанную колоду
-        shuffle(self.hidden_playing_deck_order)
+        random.shuffle(self.hidden_playing_deck_order)
         pass
 
     def show_first_turn_card(self):
@@ -953,19 +1027,26 @@ class Table:
 
     def set_table(self, start_table='new'):
         self.set_players()
-        self.shuffle()
+        if start_table != 'same':
+            self.shuffle()
         self.table_init()
         # print(self.hidden_playing_deck_order)
-        # раздача
-        for i in range(6):
+        ''' раздача карт '''
+        for _ in range(6):
             for player_id in self.players_numbers_lst:
-                # добавляем 1 карту каждому игроку
+                ''' добавляем 1 карту каждому игроку '''
                 self.add_card_2player_hand(player_id)
-        self.add_trump_card()
-        if start_table == 'new':
+
+        if start_table != 'same':
+            self.add_trump_card()
+        else:
+            for player_id in self.players_numbers_lst:
+                self.pl[player_id].set_trump(self.hidden_playing_deck_order[-1])
+            self.trump_index = self.hidden_playing_deck_order[-1]
+
+        if start_table == 'new' or start_table == 'same':
             self.show_first_turn_card()
 
-        #   Устанавливаем ход
         self.game_round = 0
         self.next_round()
         # print(f'Раунд № {self.game_round}')
@@ -1029,7 +1110,7 @@ class Table:
             self.congratulations()
         return result
 
-    def is_this_end_of_game(self)->bool:
+    def is_this_end_of_game(self) -> bool:
         # Проверка окончания игры если какой_либо игрок закончил игру.
         result = False
         players_id_lst = list(self.players_numbers_lst)
@@ -1579,22 +1660,72 @@ class Environment(Table):
         self.game_times: list = []
         self.game_rounds: list = []
         self.first_game = True
+        self.saved_playing_deck_order = []
+        pass
+
+    def save_deck_order(self) -> None:
+        """
+        Save current deck shuffle order
+
+        Returns:
+            None
+        """
+        self.saved_playing_deck_order = list(self.hidden_playing_deck_order)
+        pass
+
+    def load_deck_order(self) -> None:
+        """
+        Load saved deck shuffle order
+
+        Returns:
+            None
+        """
+        self.hidden_playing_deck_order = list(self.saved_playing_deck_order)
+        pass
+
+    def shuffle(self):
+        """
+        Shuffle the deck of cards
+        And save shuffle for using with AI
+
+        Returns:
+            None
+        """
+        # Это лист индексов колоды карт который отражает фактически колоду
+        self.hidden_playing_deck_order = list(self.playing_deck.keys())
+        # А теперь перемешанную колоду
+        random.shuffle(self.hidden_playing_deck_order)
+        self.save_deck_order()
         pass
 
     def reset(self):
         super().__init__(self.players_qty)
         pass
 
-    def play_game(self):
+    def play_game(self, start_type='next') -> None:
+        """
+        Play one game
+
+        Args:
+            start_type (str):   valid choices for behavior,
+                                "new" - 1st run in any series,
+                                "same" - using same deck shuffle every time as in 1st run,
+                                "next" - using normal behavior for all games
+        Returns:
+            None
+        """
         if self.first_game:
             self.start_time = time.time()
             self.set_table(start_table='new')
             self.first_game = False
+            self.save_deck_order()
         else:
             self.reset()
+            self.load_deck_order()
             self.start_time = time.time()
-            self.set_table(start_table='next')
-            self.player_turn = self.previous_player(self.game_loosers[len(self.game_loosers)-1])
+            self.set_table(start_table=start_type)
+            if start_type != 'same':
+                self.player_turn = self.previous_player(self.game_loosers[len(self.game_loosers)-1])
             self.current_player_id = int(self.player_turn)
         self.game_idx += 1
         msg = f'==========================================\n' \
@@ -1602,7 +1733,6 @@ class Environment(Table):
               f'==========================================\n'
         print(msg)
         self.play_episode()
-
         self.game_idxs.append(self.game_idx)
         self.game_rounds.append(self.game_round)
         self.game_winners.append(self.winner)
@@ -1610,12 +1740,12 @@ class Environment(Table):
         self.game_times.append(self.time_elapsed)
         pass
 
-    def play_series(self):
+    def play_series(self, start_type='next'):
         for game_idx in range(self.games_qty):
-            self.play_game()
-        print(f'### rounds win loose   time')
+            self.play_game(start_type)
+        print(f'#### rounds win loose   time')
         for ix in range(self.games_qty):
-            msg = f'{self.game_idxs[ix]:03d} {self.game_rounds[ix]:6d} {self.game_winners[ix]:3d} ' \
+            msg = f'{self.game_idxs[ix]:04d} {self.game_rounds[ix]:6d} {self.game_winners[ix]:3d} ' \
                   f'{self.game_loosers[ix]:5d} {self.game_times[ix]:.4f}'
             print(msg)
         print(f'Total playing time: {sum(self.game_times):.4f}')
@@ -1624,6 +1754,7 @@ class Environment(Table):
 
 # Основное тело, перенести потом в инит часть логики
 if __name__ == '__main__':
+    games_num = 1
     while True:
         try:
             players_num = int(input(f'Введите кол-во игроков (2-6)>'))
@@ -1631,12 +1762,12 @@ if __name__ == '__main__':
                 print("Неправильный ввод")
                 continue
 
-            games_num = int(input(f'Введите кол-во игр в серии (1-999)>'))
-            if games_num > 999 or games_num < 1:
+            games_num = int(input(f'Введите кол-во игр в серии (1-9999)>'))
+            if games_num > 9999 or games_num < 1:
                 print("Неправильный ввод")
                 continue
             break
         except (TypeError, ValueError):
             print("Неправильный ввод")
     fool_game = Environment(players_num, games_num)
-    fool_game.play_series()
+    fool_game.play_series(start_type='same')
