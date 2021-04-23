@@ -704,7 +704,6 @@ class Player(Deck):
             result = -1
             return result
 
-
     # Возвращает индекс карты или в случае
     def analyze(self):
         if self.action == 'Attack':
@@ -806,8 +805,6 @@ class Table:
         self.time_elapsed = 0
         self.game_circle = True
         pass
-
-
 
     def current_card_index(self) -> int:
         """
