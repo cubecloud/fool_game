@@ -19,7 +19,7 @@ import collections
 import copy
 import time
 
-__version__ = 0.0047
+__version__ = 0.0048
 
 Experience = collections.namedtuple('Experience', field_names=['state', 'action', 'reward', 'done', 'next_state'])
 
@@ -86,9 +86,6 @@ class ExperienceReplay:
                 self.buffer.append(exp)
             del [states, actions, rewards, dones, next_states]
         pass
-
-
-
 
 
 class ColorText:
@@ -161,7 +158,7 @@ class Deck:
         self.suit_chars = {1: 'П', 2: 'К', 3: 'Б', 4: 'Ч'}
         self.suits_names = {1: "Пики", 2: "Крести", 3: "Бубны", 4: "Черви"}
         self.suits_icons = {'П': '\u2660', 'К': '\u2663', 'Б': '\u2666', 'Ч': '\u2665'}
-        self.debug_verbose = 2
+        self.debug_verbose = 1
 
     pass
 
@@ -774,7 +771,7 @@ class Player(Deck):
         return card_number
 
     def show_trump(self):
-        print('Козырь: ' + self.show_card(self.trump_index))
+        print(f'Козырь: {self.show_card(self.trump_index)}')
         pass
 
 
@@ -803,12 +800,18 @@ class Table:
         for i in range(1, self.players_number + 1):
             self.players_numbers_lst.append(i)
 
-        self.debug_verbose = 2
+        self.debug_verbose = 1
         self.episode_players_ranks: list = []
         self.start_time = time.time()
         self.time_elapsed = 0
         self.first_discard = True
         self.game_circle = True
+        self.verbose = False
+        pass
+
+    def print_msg(self, msg: str) -> None:
+        if self.verbose:
+            print(msg)
         pass
 
     def current_card_index(self) -> int:
@@ -880,17 +883,17 @@ class Table:
         # print (desktop_list_1)
         # print (desktop_list_2)
         if len(desktop_list_1) > 0:
-            if self.debug_verbose > 0:
+            if self.debug_verbose > 1:
                 print(desktop_list_1)
-            print(self.pl[1].show_cards_hor(desktop_list_1))
+            self.print_msg(self.pl[1].show_cards_hor(desktop_list_1))
         else:
-            print()
+            self.print_msg('')
         if len(desktop_list_2) > 0:
-            if self.debug_verbose > 0:
+            if self.debug_verbose > 1:
                 print(desktop_list_2)
-            print(self.pl[1].show_cards_hor(desktop_list_2))
+            self.print_msg(self.pl[1].show_cards_hor(desktop_list_2))
         else:
-            print()
+            self.print_msg('')
         pass
 
     def add_card_2player_hand(self, player_number) -> None:
@@ -992,7 +995,7 @@ class Table:
     # Устанавливаем кол-во игроков
     def set_players(self):
         # Иницианилизируем работу класса игроков и делаем их словарем
-        print(f'Кол-во игроков: {self.players_number}')
+        self.print_msg(f'Кол-во игроков: {self.players_number}')
         for player_id in self.players_numbers_lst:
             if player_id == 1:
                 # self.pl[1] = Player(1, 1)
@@ -1032,8 +1035,8 @@ class Table:
     def show_first_turn_card(self):
         player, index = self.first_turn_choice()
         self.player_turn = player
-        print(f'Ходит игрок №{player} {self.pl[player].player_name}, у него меньшая карта',
-              self.pl[player].show_card(index))
+        self.print_msg(f'Ходит игрок №{player} {self.pl[player].player_name}, у него меньшая карта '
+                       f'{self.pl[player].show_card(index)}')
         status = self.pl[player].get_current_status(index)
         # player number
         status[0] = player
@@ -1056,7 +1059,7 @@ class Table:
                 ''' добавляем 1 карту каждому игроку '''
                 self.add_card_2player_hand(player_id)
 
-        ''' Setting trump '''
+        ''' Setting trump card '''
         if start_table != 'same':
             self.add_trump_card()
         else:
@@ -1146,7 +1149,7 @@ class Table:
                 #     ''' Add round experience '''
                 #     self.pl[player_id].add_round_experience()
                 #     self.pl[player_id].add_episode_experience(1.0)
-                print(
+                self.print_msg(
                     f'Игрок № {player_id}, заканчивает игру. Остается {self.players_number - 1} игроков')
                 self.show_desktop()
                 self.add_2graveyard(self.desktop_list)
@@ -1177,11 +1180,14 @@ class Table:
               f'Победитель игрок №{self.winner}\nПроигравший игрок №{self.looser}\n' \
               f'Игра закончена за {self.game_round} раундов и {self.time_elapsed:.2f} сек\n' \
               f'=========================================='
-        print(msg)
+        self.print_msg(msg)
 
         pass
 
-    #
+    def show_trump(self):
+        self.print_msg(f'Козырь: {self.pl[1].show_card(self.trump_index)}')
+        pass
+
     def show_all_cards(self, player_number) -> None:
         """
         Show all cards on desktop (table)
@@ -1196,24 +1202,23 @@ class Table:
         # Для теста
         # for i in self.players_numbers_lst:
         #     print(f'Игрок {i}', self.pl[i].show_cards_hor(self.pl[i].player_cards_onhand_list))
-        print(f'Раунд № {self.game_round}')
-        print('В колоде карт: ' + str(35 - self.hidden_deck_index))
-        if self.debug_verbose > 0:
-            print(f'Индексы перемешанной колоды:\n{self.hidden_playing_deck_order}')
+        self.print_msg(f'Раунд № {self.game_round}')
+        self.print_msg(f'В колоде карт: {(35 - self.hidden_deck_index)}')
+        if self.debug_verbose > 1:
+            self.print_msg(f'Индексы перемешанной колоды:\n{self.hidden_playing_deck_order}')
             for pl_number in self.players_numbers_lst:
-                print(f'Player number № {pl_number}:{self.pl[pl_number].player_cards_onhand_list}')
-        print(f'Заход игрока {self.player_turn}, {self.pl[self.player_turn].player_name}')
-        print(
+                self.print_msg(f'Player number № {pl_number}:{self.pl[pl_number].player_cards_onhand_list}')
+        self.print_msg(f'Заход игрока {self.player_turn}, {self.pl[self.player_turn].player_name}')
+        self.print_msg(
             f'Отбой игрока {self.next_player(self.player_turn)}, '
             f'{self.pl[self.next_player(self.player_turn)].player_name}')
-        self.pl[1].show_trump()
+        self.show_trump()
         # self.pl[1].show_cards_vert_numbered(self.pl[1].player_cards_onhand_list)
         if len(self.desktop_list) > 0:
-            print('На столе')
+            self.print_msg(f'На столе')
             self.show_desktop()
         else:
-            print('Стол пуст')
-            print()
+            self.print_msg(f'Стол пуст\n')
         pass
 
     def next_turn(self):
@@ -1363,7 +1368,7 @@ class Table:
 
             # print(f'Ход игрока {player_number}
             # {self.pl[player_number].player_name} - {self.pl[player_number].show_card(result)}')
-            print(
+            self.print_msg(
                 f'Ход игрока {self.current_player_id} {self.pl[self.current_player_id].player_name} под игрока '
                 f'{self.next_player(self.current_player_id)} '
                 f'{self.pl[self.current_player_id].show_card(self.result)}')
@@ -1383,9 +1388,9 @@ class Table:
             ''' if only 2 players and the player action is pass (self.result == 0) '''
             if self.players_number == 2:
                 # Карты уходят в сброс того что входит
-                print(
+                self.print_msg(
                     f'Игрок {self.current_player_id} {self.pl[self.current_player_id].player_name} пасует, '
-                    f'карты уходят в сброс', self.pl[self.current_player_id].show_cards_hor(self.desktop_list))
+                    f'карты уходят в сброс {self.pl[self.current_player_id].show_cards_hor(self.desktop_list)}')
                 self.add_2graveyard(self.desktop_list)
                 # убираем карты с десктопа
                 self.rem_cards_from_desktop()
@@ -1408,8 +1413,8 @@ class Table:
                     self.check_passive_players_pass_flag() and \
                     self.check_attack_player_pass_flag():
                 # Карты уходят в сброс
-                print(f'Карты уходят в сброс',
-                      self.pl[self.current_player_id].show_cards_hor(self.desktop_list))
+                self.print_msg(f'Карты уходят в сброс '
+                               f'{self.pl[self.current_player_id].show_cards_hor(self.desktop_list)}')
                 self.add_2graveyard(self.desktop_list)
                 # убираем карты с десктопа
                 self.rem_cards_from_desktop()
@@ -1432,8 +1437,8 @@ class Table:
             elif self.players_number > 2:
                 # мы пасуем, но может сходить следующий игрок.
                 # Поэтому мы передаем ход через 1 игрока (отбивающегося)
-                print(f'Игрок {self.current_player_id} '
-                      f'{self.pl[self.current_player_id].player_name} пасует, можно подбрасывать')
+                self.print_msg(f'Игрок {self.current_player_id} '
+                               f'{self.pl[self.current_player_id].player_name} пасует, можно подбрасывать')
 
                 ''' Save data about turn experience, with action_idx (self.result) '''
                 if self.pl[self.current_player_id].player_type == 'AI':
@@ -1459,7 +1464,7 @@ class Table:
             # print(
             #     f'Игрок {player_number}
             #     {self.pl[player_number].player_name} отбивается - {self.pl[player_number].show_card(result)}')
-            print(
+            self.print_msg(
                 f'Игрок {self.current_player_id} {self.pl[self.current_player_id].player_name} '
                 f'отбивается {self.pl[self.current_player_id].show_card(self.result)}')
             # print ('Десктоп', self.desktop_list)
@@ -1485,12 +1490,11 @@ class Table:
                 return
             elif (len(self.desktop_list) == 12) or \
                     (self.first_discard and len(self.desktop_list) == 10):
-                print(
+                self.print_msg(
                     f'Игрок {self.current_player_id} '
                     f'{self.pl[self.current_player_id].player_name} '
                     f'отбивается, {"первый сброс" if self.first_discard else ""} ({int(len(self.desktop_list)/2)} пар),'
-                    f' карты уходят в сброс',
-                    self.pl[self.current_player_id].show_cards_hor(self.desktop_list))
+                    f' карты уходят в сброс {self.pl[self.current_player_id].show_cards_hor(self.desktop_list)}')
 
                 self.add_2graveyard(self.desktop_list)
                 # убираем карты с десктопа
@@ -1510,8 +1514,10 @@ class Table:
             return
         elif self.result == 0:
             # Если забираем карты (нет отбоя)
-            print(f'Игрок {self.current_player_id} {self.pl[self.current_player_id].player_name} забирает',
-                  self.pl[self.current_player_id].show_cards_hor(self.desktop_list))
+            self.print_msg(
+                f'Игрок {self.current_player_id} '
+                f'{self.pl[self.current_player_id].player_name} забирает '
+                f'{self.pl[self.current_player_id].show_cards_hor(self.desktop_list)}')
 
             ''' Мы забрали карты со стола '''
             self.add_cardlist_2player_hand(self.current_player_id, self.desktop_list)
@@ -1574,8 +1580,9 @@ class Table:
             self.pl[self.current_player_id].add_turn_experience(self.result)
 
             # print(f'Подброс от игрока {player_number} - {self.pl[player_number].show_card(result)}')
-            print(f'Подброс от игрока {self.current_player_id} '
-                  f'{self.pl[self.current_player_id].show_card(self.result)}')
+            self.print_msg(
+                f'Подброс от игрока {self.current_player_id} '
+                f'{self.pl[self.current_player_id].show_card(self.result)}')
             # print ('Десктоп', self.desktop_list)
             # Пассивный игрок сходил, ставим флаг
             self.set_passive_player_pass_flag(self.current_player_id, False)
@@ -1590,7 +1597,8 @@ class Table:
             self.pl[self.current_player_id].add_turn_experience(self.result)
 
             # мы пасуем
-            print(f'Игрок {self.current_player_id} {self.pl[self.current_player_id].player_name} тоже пасует')
+            self.print_msg(
+                f'Игрок {self.current_player_id} {self.pl[self.current_player_id].player_name} тоже пасует')
             # игрок не ходит, ставим флаг
             self.set_passive_player_pass_flag(self.current_player_id, True)
             # print ('Десктоп', self.desktop_list)
@@ -1608,7 +1616,7 @@ class Table:
             ''' Save data about turn experience, with action_idx (self.result) '''
             self.pl[self.current_player_id].add_turn_experience(self.result)
 
-            print(
+            self.print_msg(
                 f'Игрок {self.current_player_id} {self.pl[self.current_player_id].player_name} '
                 f'пропускает ход, ждем сигнал от атакующего')
             self.set_passive_player_pass_flag(self.current_player_id, False)
@@ -1639,12 +1647,11 @@ class Table:
             if (len(self.desktop_list) == 12) or \
                     (self.first_discard and len(self.desktop_list) == 10):
 
-                print(
+                self.print_msg(
                     f'Игрок {self.next_player(self.player_turn)} '
                     f'{self.pl[self.next_player(self.player_turn)].player_name} '
                     f'отбивается, {"первый сброс" if self.first_discard else ""} ({int(len(self.desktop_list)/2)} пар),'
-                    f' карты уходят в сброс',
-                    self.pl[self.current_player_id].show_cards_hor(self.desktop_list))
+                    f' карты уходят в сброс {self.pl[self.current_player_id].show_cards_hor(self.desktop_list)}')
                 self.add_2graveyard(self.desktop_list)
                 # убираем карты с десктопа
                 self.rem_cards_from_desktop()
@@ -1686,6 +1693,7 @@ class Environment(Table):
         self.first_game = True
         self.saved_playing_deck_order = []
         self.replay_buffer = ExperienceReplay(None)
+        self.verbose = False
         pass
 
     def save_deck_order(self) -> None:
@@ -1763,7 +1771,7 @@ class Environment(Table):
         msg = f'==========================================\n' \
               f'Игра № {self.game_idx:03d}\n' \
               f'==========================================\n'
-        print(msg)
+        self.print_msg(msg)
         self.play_episode()
         self.game_idxs.append(self.game_idx)
         self.game_rounds.append(self.game_round)
@@ -1776,15 +1784,16 @@ class Environment(Table):
 
         for game_idx in range(self.games_qty):
             self.play_game(start_type)
-            for ix, player_id in enumerate(self.episode_players_ranks):
-                print(f'{ix + 1}. {player_id}')
+            if self.verbose:
+                for ix, player_id in enumerate(self.episode_players_ranks):
+                    print(f'{ix + 1}. {player_id}')
             self.replay_buffer.extend(self.pl[2].episode_buffer)
             if self.debug_verbose > 2:
                 buffer = self.replay_buffer.show()
-                # print('States:')
-                # for line in buffer[0]:
-                #     with np.printoptions(precision=3, suppress=True):
-                #         print(line)
+                print('States:')
+                for line in buffer[0]:
+                    with np.printoptions(precision=3, suppress=True):
+                        print(line)
                 print('Actions:')
                 for line in buffer[1]:
                     with np.printoptions(precision=3, suppress=True):
@@ -1793,10 +1802,10 @@ class Environment(Table):
                 print(buffer[2])
                 print('Dones:')
                 print(buffer[3])
-                # print('Next states:')
-                # for line in buffer[4]:
-                #     with np.printoptions(precision=3, suppress=True):
-                #         print(line)
+                print('Next states:')
+                for line in buffer[4]:
+                    with np.printoptions(precision=3, suppress=True):
+                        print(line)
         print(f'#### rounds win loose   time')
         for ix in range(self.games_qty):
             msg = f'{self.game_idxs[ix]:04d} {self.game_rounds[ix]:6d} {self.game_winners[ix]:3d} ' \
