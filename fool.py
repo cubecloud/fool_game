@@ -19,7 +19,7 @@ import collections
 import copy
 import time
 
-__version__ = 0.0048
+__version__ = 0.0049
 
 Experience = collections.namedtuple('Experience', field_names=['state', 'action', 'reward', 'done', 'next_state'])
 
@@ -736,8 +736,8 @@ class Player(Deck):
         self.trump_range = range(self.suit_range[self.trump_char][0], self.suit_range[self.trump_char][1])
         pass
 
-    def get_deck(self, indeck):
-        self.player_deck = copy.deepcopy(indeck)
+    def get_deck(self, deck):
+        self.player_deck = copy.deepcopy(deck)
         pass
 
     def ask_for_name(self):
@@ -917,7 +917,7 @@ class Table:
             self.end_of_deck = True
         pass
 
-    def add_cardlist_2player_hand(self, player_number, cards_list):
+    def add_cardslist_2player_hand(self, player_number, cards_list):
         for index in cards_list:
             # взять карту из листа в руку
             self.pl[player_number].get_card(index)
@@ -1520,7 +1520,7 @@ class Table:
                 f'{self.pl[self.current_player_id].show_cards_hor(self.desktop_list)}')
 
             ''' Мы забрали карты со стола '''
-            self.add_cardlist_2player_hand(self.current_player_id, self.desktop_list)
+            self.add_cardslist_2player_hand(self.current_player_id, self.desktop_list)
 
             ''' Save data about turn experience, with action_idx (self.result) '''
             if self.pl[self.current_player_id].player_type == 'AI':
@@ -1687,7 +1687,7 @@ class Environment(Table):
         self.game_idx: int = 0
         self.game_idxs: list = []
         self.game_winners: list = []
-        self.game_loosers: list = []
+        self.game_losers: list = []
         self.game_times: list = []
         self.game_rounds: list = []
         self.first_game = True
@@ -1765,7 +1765,7 @@ class Environment(Table):
             self.start_time = time.time()
             self.set_table(start_table=start_type)
             if start_type != 'same':
-                self.player_turn = self.previous_player(self.game_loosers[len(self.game_loosers)-1])
+                self.player_turn = self.previous_player(self.game_losers[len(self.game_losers) - 1])
             self.current_player_id = int(self.player_turn)
         self.game_idx += 1
         msg = f'==========================================\n' \
@@ -1776,7 +1776,7 @@ class Environment(Table):
         self.game_idxs.append(self.game_idx)
         self.game_rounds.append(self.game_round)
         self.game_winners.append(self.winner)
-        self.game_loosers.append(self.looser)
+        self.game_losers.append(self.looser)
         self.game_times.append(self.time_elapsed)
         pass
 
@@ -1809,7 +1809,7 @@ class Environment(Table):
         print(f'#### rounds win loose   time')
         for ix in range(self.games_qty):
             msg = f'{self.game_idxs[ix]:04d} {self.game_rounds[ix]:6d} {self.game_winners[ix]:3d} ' \
-                  f'{self.game_loosers[ix]:5d} {self.game_times[ix]:.4f}'
+                  f'{self.game_losers[ix]:5d} {self.game_times[ix]:.4f}'
             print(msg)
         print(f'Total playing time: {sum(self.game_times):.4f}')
         print(self.replay_buffer.__len__())
