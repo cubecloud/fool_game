@@ -19,7 +19,7 @@ import collections
 import copy
 import time
 
-__version__ = 0.0043
+__version__ = 0.0044
 
 Experience = collections.namedtuple('Experience', field_names=['state', 'action', 'reward', 'done', 'next_state'])
 
@@ -803,6 +803,7 @@ class Table:
         self.debug_verbose = 1
         self.start_time = time.time()
         self.time_elapsed = 0
+        self.first_discard = True
         self.game_circle = True
         pass
 
@@ -816,9 +817,20 @@ class Table:
         """
         return self.hidden_playing_deck_order[self.hidden_deck_index]
 
-    # Пометить каждую карту из переданного списка,
-    # в колоде каждого игрока как находящуюся в сбросе
-    def add_2graveyard(self, graveyard_list):
+    def add_2graveyard(self, graveyard_list) -> None:
+        """
+        Mark the cards from graveyard_list for each players deck with graveyard status
+
+        Args:
+            graveyard_list (list):  list of card for graveyard status
+
+        Returns:
+            None
+        """
+
+        ''' First discard flag set to False '''
+        if self.first_discard:
+            self.first_discard = False
         for index in graveyard_list:
             for player_number in self.players_numbers_lst:
                 # Убрать карту со стола (поменять статус стола и принадлежности на 'Сброс')
@@ -1037,6 +1049,7 @@ class Table:
                 ''' добавляем 1 карту каждому игроку '''
                 self.add_card_2player_hand(player_id)
 
+        ''' Setting trump '''
         if start_table != 'same':
             self.add_trump_card()
         else:
@@ -1468,12 +1481,15 @@ class Table:
                 self.next_round()
                 self.current_player_id = int(self.player_turn)
                 return
-            elif len(self.desktop_list) == 12:
+            elif (len(self.desktop_list) == 12) or \
+                    (self.first_discard and len(self.desktop_list) == 10):
                 print(
                     f'Игрок {self.current_player_id} '
                     f'{self.pl[self.current_player_id].player_name} '
-                    f'отбивается (6 пар), карты уходят в сброс',
+                    f'отбивается, {"первый сброс" if self.first_discard else ""} ({int(len(self.desktop_list)/2)} пар),'
+                    f' карты уходят в сброс',
                     self.pl[self.current_player_id].show_cards_hor(self.desktop_list))
+
                 self.add_2graveyard(self.desktop_list)
                 # убираем карты с десктопа
                 self.rem_cards_from_desktop()
@@ -1615,11 +1631,14 @@ class Table:
 
         self.current_player_id = int(self.player_turn)
         while self.game_circle:
-            if len(self.desktop_list) == 12:
+            if (len(self.desktop_list) == 12) or \
+                    (self.first_discard and len(self.desktop_list) == 10):
+
                 print(
                     f'Игрок {self.next_player(self.player_turn)} '
                     f'{self.pl[self.next_player(self.player_turn)].player_name} '
-                    f'отбивается (6 пар), карты уходят в сброс',
+                    f'отбивается, {"первый сброс" if self.first_discard else ""} ({int(len(self.desktop_list)/2)} пар),'
+                    f' карты уходят в сброс',
                     self.pl[self.current_player_id].show_cards_hor(self.desktop_list))
                 self.add_2graveyard(self.desktop_list)
                 # убираем карты с десктопа
@@ -1685,6 +1704,7 @@ class Environment(Table):
 
     def shuffle(self):
         """
+        New shuffle with saving starting shuffle of the deck
         Shuffle the deck of cards
         And save shuffle for using with AI
 
