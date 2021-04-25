@@ -19,7 +19,7 @@ import collections
 import copy
 import time
 
-__version__ = 0.0049
+__version__ = 0.0050
 
 Experience = collections.namedtuple('Experience', field_names=['state', 'action', 'reward', 'done', 'next_state'])
 
@@ -233,9 +233,10 @@ class Player(Deck):
         else:
             self.player_name = f'{self.player_types[player_type_num]} №' + str(self.player_number)
         self.player_cards_onhand_list = list()
-        self.game_round = 0
-        self.player_turn = 0
-        self.players_number = 0
+        self.game_round: int = 0
+        self.player_turn: int = 0
+        self.game_turn: int = 0
+        self.players_number: int = 0
         self.desktop_list = list()
         self.passive_player_pass_flag = False
         self.attack_player_pass_flag = False
@@ -247,9 +248,10 @@ class Player(Deck):
         self.zeros_state = np.zeros(shape=(36, 7), dtype=np.int8)
         self.turn_action_idx: int = 0
         self.turn_experience = tuple()
-        self.round_experience = []
-        self.episode_experience = []
-        self.episode_buffer = []
+        self.round_experience: list = []
+        self.episode_experience: list = []
+        self.episode_buffer: list = []
+
         ''' 
         Zero reward - should be added at the end of episode 
         float type
@@ -325,6 +327,7 @@ class Player(Deck):
         Returns:
             None:
         """
+        self.game_turn += 1
         self.turn_state = self.convert_deck_2state()
         self.turn_experience: tuple = (self.turn_state, action_idx, self.zero_reward, self.zero_done)
         self.round_experience.append(self.turn_experience)
@@ -1552,7 +1555,7 @@ class Table:
                 # ходить будет игрок которому передали ход
                 self.current_player_id = int(self.player_turn)
             # self.if_human_pause(player_number)
-
+            return
         elif self.result < 0:
             # пропускаем ход (к пассивному игроку)
 
@@ -1577,7 +1580,8 @@ class Table:
             self.add_card_2desktop(self.result, self.action, self.current_player_id)
 
             ''' Save data about turn experience, with action_idx (self.result) '''
-            self.pl[self.current_player_id].add_turn_experience(self.result)
+            if self.pl[self.current_player_id].player_type == 'AI':
+                self.pl[self.current_player_id].add_turn_experience(self.result)
 
             # print(f'Подброс от игрока {player_number} - {self.pl[player_number].show_card(result)}')
             self.print_msg(
@@ -1594,7 +1598,8 @@ class Table:
             return
         elif self.result == 0:
             ''' Save data about turn experience, with action_idx (self.result) '''
-            self.pl[self.current_player_id].add_turn_experience(self.result)
+            if self.pl[self.current_player_id].player_type == 'AI':
+                self.pl[self.current_player_id].add_turn_experience(self.result)
 
             # мы пасуем
             self.print_msg(
@@ -1614,7 +1619,8 @@ class Table:
 
         elif self.action == 'Passive' and self.result < 0:
             ''' Save data about turn experience, with action_idx (self.result) '''
-            self.pl[self.current_player_id].add_turn_experience(self.result)
+            if self.pl[self.current_player_id].player_type == 'AI':
+                self.pl[self.current_player_id].add_turn_experience(self.result)
 
             self.print_msg(
                 f'Игрок {self.current_player_id} {self.pl[self.current_player_id].player_name} '
@@ -1785,8 +1791,10 @@ class Environment(Table):
         for game_idx in range(self.games_qty):
             self.play_game(start_type)
             if self.verbose:
+                print(f'### player turns')
                 for ix, player_id in enumerate(self.episode_players_ranks):
-                    print(f'{ix + 1}. {player_id}')
+                    print(f'{ix + 1:02d}. {player_id:6d} {self.pl[player_id].game_turn:5d}')
+
             self.replay_buffer.extend(self.pl[2].episode_buffer)
             if self.debug_verbose > 2:
                 buffer = self.replay_buffer.show()
@@ -1834,4 +1842,5 @@ if __name__ == '__main__':
         except (TypeError, ValueError):
             print("Неправильный ввод")
     fool_game = Environment(players_num, games_num)
+    # fool_game.verbose = True
     fool_game.play_series(start_type='same')
