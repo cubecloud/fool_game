@@ -2,7 +2,7 @@ from setuptools import setup
 
 setup(
     name='cardgame',
-    version='0.0.0.52',
+    version='0.0.0.53',
     packages=['cardgame'],
     url='',
     license='',
@@ -16,8 +16,6 @@ setup(
                       'seaborn>=0.11.1',
                       'dataclasses>=0.6',
                       'pandas>=1.1.5',
-                      'seaborn>=0.11.1',
                       'ipython>=5.5.0',
-                      'scikit-learn>=0.22.2',
                       ]
     )
