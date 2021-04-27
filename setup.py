@@ -3,7 +3,7 @@ with open("README.md", "r", encoding="utf-8") as fh:
     long_description = fh.read()
 
 setuptools.setup(
-    name='cardgame',
+    name='fool_game',
     version='0.0.54',
     # name="example-pkg-YOUR-USERNAME-HERE", # Replace with your own username
     author='cubecloud',
@@ -17,7 +17,7 @@ setuptools.setup(
         "License :: Apache 2.0 License",
         "Operating System :: OS Independent",
     ],
-    package_dir={"": ""},
+    package_dir={"": "lib"},
     python_requires=">=3.7",
     install_requires=['setuptools>=51.0.0',
                       'tensorflow==2.3.0',
@@ -30,8 +30,3 @@ setuptools.setup(
                       'ipython>=5.5.0',
                       ]
 )
-
-
-setup(
-
-    )
