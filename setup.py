@@ -17,7 +17,7 @@ setuptools.setup(
         "License :: Apache 2.0 License",
         "Operating System :: OS Independent",
     ],
-    package_dir={"": "lib"},
+    # package_dir={"": ""},
     python_requires=">=3.7",
     install_requires=['setuptools>=51.0.0',
                       'tensorflow==2.3.0',
