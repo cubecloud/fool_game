@@ -5,6 +5,7 @@ with open("README.md", "r", encoding="utf-8") as fh:
 setuptools.setup(
     name='fool_game',
     version='0.0.54',
+    packages=['cardgame'],
     # name="example-pkg-YOUR-USERNAME-HERE", # Replace with your own username
     author='cubecloud',
     author_email='rainmaverick@mail.ru',
@@ -27,6 +28,6 @@ setuptools.setup(
                       'seaborn>=0.11.1',
                       'dataclasses>=0.6',
                       'pandas>=1.1.5',
-                      'ipython>=5.5.0',
+                      # 'ipython>=5.5.0',
                       ]
 )
