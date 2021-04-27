@@ -1,5 +1,4 @@
 from setuptools import setup
-
 setup(
     name='cardgame',
     version='0.0.0.53',
