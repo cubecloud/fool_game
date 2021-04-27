@@ -24,7 +24,7 @@ from tensorflow.keras.layers import Dense, Flatten, Input, Lambda, Conv2D, MaxPo
 from tensorflow.keras.layers import BatchNormalization
 from tensorflow.keras.optimizers import RMSprop, Adam, SGD, RMSprop
 
-__version__ = "0.0.54"
+__version__ = "0.0.56"
 
 Experience = collections.namedtuple('Experience', field_names=['state', 'action', 'reward', 'done', 'next_state'])
 
