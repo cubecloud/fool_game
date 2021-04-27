@@ -18,10 +18,35 @@ import pickle as pkl
 import collections
 import copy
 import time
+import tensorflow.keras
+from tensorflow.keras import layers
+from tensorflow.keras.layers import Dense, Flatten, Input, Lambda, Conv2D, MaxPooling2D, Reshape, Multiply
+from tensorflow.keras.layers import BatchNormalization
+from tensorflow.keras.optimizers import RMSprop, Adam, SGD, RMSprop
 
-__version__ = 0.0050
+__version__ = 0.0052
 
 Experience = collections.namedtuple('Experience', field_names=['state', 'action', 'reward', 'done', 'next_state'])
+
+class LearnAI:
+    def __init__(self):
+        pass
+
+    def create_q_model(self, num_actions=37):
+        # Network defined by the Deepmind paper
+        inputs = layers.Input(shape=(37, 7,))
+
+        # Convolutions on the frames on the screen
+        layer1 = layers.Conv1D(32, 8, strides=4, activation="relu")(inputs)
+        layer2 = layers.Conv1D(64, 4, strides=2, activation="relu")(layer1)
+        layer3 = layers.Conv1D(64, 3, strides=1, activation="relu")(layer2)
+
+        layer4 = layers.Flatten()(layer3)
+
+        layer5 = layers.Dense(512, activation="relu")(layer4)
+        action = layers.Dense(num_actions, activation="linear")(layer5)
+
+        return tensorflow.keras.Model(inputs=inputs, outputs=action)
 
 
 class ExperienceReplay:
@@ -709,12 +734,12 @@ class Player(Deck):
     # Возвращает индекс карты или в случае
     def analyze(self):
         if self.action == 'Attack':
-            if random.random() > 0.9:
+            if random.random() > 0.1:
                 r_index = self.attacking_low_weight()
             else:
                 r_index = self.attacking_random()
         elif self.action == 'Defend':
-            if random.random() > 0.9:
+            if random.random() > 0.1:
                 r_index = self.defending_low_weight()
             else:
                 r_index = self.defending_random()
@@ -722,7 +747,7 @@ class Player(Deck):
             """
             self.action == 'Passive':
             """
-            if random.random() > 0.9:
+            if random.random() > 0.1:
                 r_index = self.passive_attacking_low_weight()
             else:
                 r_index = self.passive_attacking_random()
@@ -1700,6 +1725,7 @@ class Environment(Table):
         self.saved_playing_deck_order = []
         self.replay_buffer = ExperienceReplay(None)
         self.verbose = False
+        self.train_process = True
         pass
 
     def save_deck_order(self) -> None:
@@ -1748,6 +1774,32 @@ class Environment(Table):
         super().__init__(self.players_qty)
         pass
 
+    def add_report_data(self):
+        self.game_idxs.append(self.game_idx)
+        self.game_rounds.append(self.game_round)
+        self.game_winners.append(self.winner)
+        self.game_losers.append(self.looser)
+        self.game_times.append(self.time_elapsed)
+        pass
+
+    def prepare_new_game(self):
+        self.start_time = time.time()
+        self.set_table(start_table='new')
+        self.first_game = False
+        self.save_deck_order()
+        pass
+
+    def continue_series(self, start_type='next'):
+        self.reset()
+        self.load_deck_order()
+        self.start_time = time.time()
+        self.set_table(start_table=start_type)
+        if start_type != 'same':
+            self.player_turn = self.previous_player(self.game_losers[len(self.game_losers) - 1])
+        self.current_player_id = int(self.player_turn)
+
+        pass
+
     def play_game(self, start_type='next') -> None:
         """
         Play one game
@@ -1779,15 +1831,56 @@ class Environment(Table):
               f'==========================================\n'
         self.print_msg(msg)
         self.play_episode()
-        self.game_idxs.append(self.game_idx)
-        self.game_rounds.append(self.game_round)
-        self.game_winners.append(self.winner)
-        self.game_losers.append(self.looser)
-        self.game_times.append(self.time_elapsed)
+        self.add_report_data()
+        pass
+
+    def train_ai(self, verbose=True):
+        win_condition = 2
+        self.verbose = verbose
+        ''' quantity of games for playing same deck shuffle'''
+        self.games_qty = 200
+        start_type_lst = ['same', 'next']
+        ai_wins = 0
+        row_wins = False
+        ''' we are play until ai wins 12 games in row '''
+        while ai_wins < win_condition:
+            for start_type in start_type_lst:
+                for game_idx in range(self.games_qty):
+                    if self.first_game:
+                        self.prepare_new_game()
+                    else:
+                        self.continue_series(start_type)
+                    msg = f'==========================================\n' \
+                          f'Игра № {self.game_idx:03d}\n' \
+                          f'==========================================\n'
+                    self.print_msg(msg)
+                    self.play_episode()
+                    self.add_report_data()
+                    self.game_idx += 1
+                    self.replay_buffer.extend(self.pl[2].episode_buffer)
+                    for ix, player_id in enumerate(self.episode_players_ranks):
+                        if ix+1 == 1:
+                            if player_id == 2:
+                                self.replay_buffer.extend(self.pl[2].episode_buffer)
+                                ai_wins += 1
+                                print(f'{ix + 1:02d}. {player_id:6d} {self.pl[player_id].game_turn:5d}')
+                            else:
+                                ai_wins = 0
+                    if self.verbose:
+                        print(f'### player turns')
+                        for ix, player_id in enumerate(self.episode_players_ranks):
+                            print(f'{ix + 1:02d}. {player_id:6d} {self.pl[player_id].game_turn:5d}')
+
+        print(f'#### rounds win loose   time')
+        for ix in range(len(self.game_idxs)):
+            msg = f'{self.game_idxs[ix]:07d} {self.game_rounds[ix]:6d} {self.game_winners[ix]:3d} ' \
+                  f'{self.game_losers[ix]:5d} {self.game_times[ix]:.4f}'
+            print(msg)
+        print(f'Total playing time: {sum(self.game_times):.4f}')
+        print(self.replay_buffer.__len__())
         pass
 
     def play_series(self, start_type='next'):
-
         for game_idx in range(self.games_qty):
             self.play_game(start_type)
             if self.verbose:
@@ -1816,7 +1909,7 @@ class Environment(Table):
                         print(line)
         print(f'#### rounds win loose   time')
         for ix in range(self.games_qty):
-            msg = f'{self.game_idxs[ix]:04d} {self.game_rounds[ix]:6d} {self.game_winners[ix]:3d} ' \
+            msg = f'{self.game_idxs[ix]:07d} {self.game_rounds[ix]:6d} {self.game_winners[ix]:3d} ' \
                   f'{self.game_losers[ix]:5d} {self.game_times[ix]:.4f}'
             print(msg)
         print(f'Total playing time: {sum(self.game_times):.4f}')
@@ -1826,21 +1919,23 @@ class Environment(Table):
 
 # Основное тело, перенести потом в инит часть логики
 if __name__ == '__main__':
-    games_num = 1
-    while True:
-        try:
-            players_num = int(input(f'Введите кол-во игроков (2-6)>'))
-            if players_num > 6 or players_num < 2:
-                print("Неправильный ввод")
-                continue
-
-            games_num = int(input(f'Введите кол-во игр в серии (1-9999)>'))
-            if games_num > 9999 or games_num < 1:
-                print("Неправильный ввод")
-                continue
-            break
-        except (TypeError, ValueError):
-            print("Неправильный ввод")
+    games_num = 2000
+    # while True:
+    #     try:
+    #         players_num = int(input(f'Введите кол-во игроков (2-6)>'))
+    #         if players_num > 6 or players_num < 2:
+    #             print("Неправильный ввод")
+    #             continue
+    #
+    #         games_num = int(input(f'Введите кол-во игр в серии (1-9 999 999)>'))
+    #         if games_num > 9999999 or games_num < 1:
+    #             print("Неправильный ввод")
+    #             continue
+    #         break
+    #     except (TypeError, ValueError):
+    #         print("Неправильный ввод")
+    players_num = 4
     fool_game = Environment(players_num, games_num)
-    # fool_game.verbose = True
-    fool_game.play_series(start_type='same')
+    fool_game.verbose = True
+    # fool_game.play_series(start_type='next')
+    fool_game.train_ai()
