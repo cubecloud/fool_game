@@ -24,15 +24,14 @@ from tensorflow.keras.layers import Dense, Flatten, Input, Lambda, Conv2D, MaxPo
 from tensorflow.keras.layers import BatchNormalization
 from tensorflow.keras.optimizers import RMSprop, Adam, SGD, RMSprop
 
-__version__ = "0.0.56"
+__version__ = "0.0.57"
 
 Experience = collections.namedtuple('Experience', field_names=['state', 'action', 'reward', 'done', 'next_state'])
 
 class LearnAI:
-    def __init__(self):
-        pass
 
-    def create_q_model(self, num_actions=37):
+    @staticmethod
+    def q_model(num_actions=37):
         # Network defined by the Deepmind paper
         inputs = layers.Input(shape=(37, 7,))
 
