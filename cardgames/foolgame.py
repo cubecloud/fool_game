@@ -25,21 +25,22 @@ from tensorflow.keras.layers import Dense, Flatten, Input, Lambda, Conv2D, MaxPo
 from tensorflow.keras.layers import BatchNormalization
 from tensorflow.keras.optimizers import RMSprop, Adam, SGD, RMSprop
 
-__version__ = "0.0.67"
+__version__ = "0.0.81"
 
 Experience = collections.namedtuple('Experience', field_names=['state', 'action', 'reward', 'done', 'next_state'])
 
 
 def q_model(num_actions=37):
+    initializer = tf.keras.initializers.RandomUniform(minval=0., maxval=0.025)
     inputs = layers.Input(shape=(37, 7,))
     # Convolutions on the player deck state
-    layer1 = layers.Conv1D(32, 8, strides=4, activation="relu")(inputs)
-    layer2 = layers.Conv1D(64, 4, strides=2, activation="relu")(layer1)
-    layer3 = layers.Conv1D(64, 3, strides=1, activation="relu")(layer2)
+    layer1 = layers.Conv1D(24, 8, strides=4, activation="relu", kernel_initializer=initializer)(inputs)
+    layer2 = layers.Conv1D(48, 4, strides=2, activation="relu", kernel_initializer=initializer)(layer1)
+    layer3 = layers.Conv1D(48, 3, strides=1, activation="relu", kernel_initializer=initializer)(layer2)
 
     layer4 = layers.Flatten()(layer3)
 
-    layer5 = layers.Dense(512, activation="relu")(layer4)
+    layer5 = layers.Dense(256, activation="relu", kernel_initializer=initializer)(layer4)
     action = layers.Dense(num_actions, activation="linear")(layer5)
 
     return tensorflow.keras.Model(inputs=inputs, outputs=action)
@@ -47,11 +48,8 @@ def q_model(num_actions=37):
 
 class ExperienceReplay:
     def __init__(self, capacity):
-        if not (capacity is None):
-            self.capacity = capacity
-            self.buffer = collections.deque(maxlen=capacity)
-        else:
-            self.buffer = collections.deque(maxlen=None)
+        self.capacity = capacity
+        self.buffer = collections.deque(maxlen=capacity)
         pass
 
     def __len__(self):
@@ -85,12 +83,15 @@ class ExperienceReplay:
                 np.array(dones, dtype=np.uint8), np.array(next_states))
 
     def save(self, file_path, buffer_length=10000):
+        len_buffer = len(self.buffer)
         with open(file_path, "wb") as f:
             print('Save exp buffer...')
-            if (len(self.buffer) < self.capacity) and (len(self.buffer) < buffer_length):
-                buffer_length = self.__len__()
-            elif len(self.buffer) < buffer_length:
-                buffer_length = self.__len__()
+            if not (self.capacity is None) \
+                    and (len_buffer < self.capacity) \
+                    and (len_buffer < buffer_length):
+                buffer_length = len_buffer
+            else:
+                buffer_length = len_buffer
             states, actions, rewards, dones, next_states = \
                 zip(*[self.buffer[idx] for idx in range(len(self.buffer) - buffer_length, len(self.buffer))])
             pkl.dump([states, actions, rewards, dones, next_states], f)
@@ -328,10 +329,12 @@ class Player(Deck):
             '''
             card_state[4] = card_value[4]
             '''                                     
-            2. Will not be normalized cos we doesn't know the total rounds 
+            # 3. Normalized /100
+            # 2. Will not be normalized cos we doesn't know the total rounds 
             # 1. Normalize round number (will be normalized after playing full episode)            
             '''
             card_state[5] = card_value[5]
+            # card_state[5] = card_value[5]/100
             '''                                     
             Normalize card weight (max card_weight=34)
             '''
@@ -349,6 +352,8 @@ class Player(Deck):
         Returns:
             None:
         """
+        if action_idx == -1:
+            action_idx = 0
         self.game_turn += 1
         self.turn_state = self.convert_deck_2state()
         self.turn_experience: tuple = (self.turn_state, action_idx, self.zero_reward, self.zero_done)
@@ -819,7 +824,7 @@ class AIPlayer(Player):
         else:
             # Predict action Q-values
             # From environment state
-            print(action_list)
+            print(self.action, action_list)
             state_a = self.convert_deck_2state()
             state_tensor = tf.convert_to_tensor(state_a)
             state_tensor = tf.expand_dims(state_tensor, 0)
@@ -827,12 +832,15 @@ class AIPlayer(Player):
             print(action_probs)
             # Take best action
             masks = tf.one_hot(action_list, self.num_actions)
-            print(masks)
-            valid_actions = tf.reduce_sum(tf.multiply(action_probs, masks), axis=0)
-            print(valid_actions)
+            # print(masks.numpy)
+            valid_actions = tf.expand_dims(tf.reduce_sum(tf.multiply(action_probs, masks), axis=0), 0)
+            # valid_actions = tf.expand_dims(valid_actions, 0)
+            print(valid_actions.numpy())
             # action = tf.argmax(action_probs[0]).numpy()
-            action = tf.argmax(valid_actions, axis=0).numpy()-1
+            action = np.argmax(valid_actions)
             print(action)
+            if not (action in action_list):
+                action = action_list[0]
         return action
 
     def attacking(self):
@@ -843,7 +851,7 @@ class AIPlayer(Player):
             Add to random choice one more option if we have something on table 
             0 - pass
             '''
-            attack_list.append(0)
+            attack_list.insert(0, 0)
             if random.random() < self.epsilon:
                 if len(attack_list) > 0:
                     action = random.choice(attack_list)
@@ -871,7 +879,7 @@ class AIPlayer(Player):
                     Add to random choice one more option 
                     0 - get cards
                     '''
-                    defend_list.append(0)
+                    defend_list.insert(0, 0)
                     if random.random() < self.epsilon:
                         action = random.choice(defend_list)
                     else:
@@ -893,7 +901,7 @@ class AIPlayer(Player):
                 Add to random choice one more option if we have something on table 
                 0 - pass
                 '''
-                attack_list.append(0)
+                attack_list.insert(0, 0)
                 if random.random() < self.epsilon:
                     action = random.choice(attack_list)
                 else:
@@ -1290,7 +1298,8 @@ class Table:
             if self.if_player_hand_and_deck_empty(player_id):
                 self.episode_players_ranks.append(player_id)
                 if self.pl[player_id].player_type == 'AI':
-                    rank_reward = 1 - (2 / (self.players_qty - 1)) * (len(self.episode_players_ranks) - 1)
+                    # rank_reward = 1 - (2 / (self.players_qty - 1)) * (len(self.episode_players_ranks) - 1)
+                    rank_reward = (1/self.players_qty) * (self.players_qty - (len(self.episode_players_ranks) - 1))
                     self.pl[player_id].add_round_experience()
                     self.pl[player_id].add_episode_experience(rank_reward)
 
@@ -1307,7 +1316,9 @@ class Table:
                     self.looser = self.next_player(player_id)
                     self.episode_players_ranks.append(self.looser)
                     if self.pl[self.looser].player_type == 'AI':
-                        rank_reward = 1 - (2 / (self.players_qty - 1)) * (len(self.episode_players_ranks) - 1)
+                        # rank_reward = 1 - (2 / (self.players_qty - 1)) * (len(self.episode_players_ranks) - 1)
+                        rank_reward = (1 / self.players_qty) * (
+                                    self.players_qty - (len(self.episode_players_ranks) - 1))
                         self.pl[self.looser].add_round_experience()
                         self.pl[self.looser].add_episode_experience(rank_reward)
                     # print(self.looser)
@@ -1844,6 +1855,7 @@ class Environment(Table):
         self.game_losers: list = []
         self.game_times: list = []
         self.game_rounds: list = []
+        self.game_turns: int = 0
         self.first_game = True
         self.saved_playing_deck_order = []
         self.replay_buffer = ExperienceReplay(None)
@@ -2030,7 +2042,9 @@ class Environment(Table):
         self.play_episode()
         self.game_idx += 1
         self.__add_report_data()
+        self.game_turns = self.pl[2].game_turn-1
         self.replay_buffer.extend(self.pl[2].episode_buffer)
+
         last_turn = self.pl[2].episode_buffer[-1]
         _, _, turn_reward, _, _ = last_turn
         return turn_reward
