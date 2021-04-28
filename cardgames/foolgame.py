@@ -25,7 +25,7 @@ from tensorflow.keras.layers import Dense, Flatten, Input, Lambda, Conv2D, MaxPo
 from tensorflow.keras.layers import BatchNormalization
 from tensorflow.keras.optimizers import RMSprop, Adam, SGD, RMSprop
 
-__version__ = "0.0.64"
+__version__ = "0.0.65"
 
 Experience = collections.namedtuple('Experience', field_names=['state', 'action', 'reward', 'done', 'next_state'])
 
@@ -830,9 +830,8 @@ class AIPlayer(Player):
             print(masks)
             valid_actions = tf.reduce_sum(tf.multiply(action_probs, masks), axis=0)
             print(valid_actions)
-            action = tf.argmax(action_probs[0]).numpy()
-            action = tf.argmax(valid_actions[0]).numpy()
-            print(valid_actions[0])
+            # action = tf.argmax(action_probs[0]).numpy()
+            action = tf.argmax(valid_actions).numpy()
             print(action)
         return action
 
