@@ -25,7 +25,7 @@ from tensorflow.keras import layers
 # from tensorflow.keras.layers import BatchNormalization
 # from tensorflow.keras.optimizers import RMSprop, Adam, SGD, RMSprop
 
-__version__ = "0.0.83"
+__version__ = "0.0.84"
 
 Experience = collections.namedtuple('Experience', field_names=['state', 'action', 'reward', 'done', 'next_state'])
 
@@ -329,7 +329,7 @@ class Player(Deck):
             '''
             card_state[4] = card_value[4]
             '''
-            # 5. Normalized /100
+            # 5. Normalized /10
             # 4. Normalized                                      
             # 3. Normalized /100
             # 2. Will not be normalized cos we doesn't know the total rounds 
