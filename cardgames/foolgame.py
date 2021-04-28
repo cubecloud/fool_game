@@ -18,34 +18,31 @@ import pickle as pkl
 import collections
 import copy
 import time
+import tensorflow as tf
 import tensorflow.keras
 from tensorflow.keras import layers
 from tensorflow.keras.layers import Dense, Flatten, Input, Lambda, Conv2D, MaxPooling2D, Reshape, Multiply
 from tensorflow.keras.layers import BatchNormalization
 from tensorflow.keras.optimizers import RMSprop, Adam, SGD, RMSprop
 
-__version__ = "0.0.58"
+__version__ = "0.0.60"
 
 Experience = collections.namedtuple('Experience', field_names=['state', 'action', 'reward', 'done', 'next_state'])
 
-class LearnAI:
 
-    @staticmethod
-    def q_model(num_actions=37):
-        # Network defined by the Deepmind paper
-        inputs = layers.Input(shape=(37, 7,))
+def q_model(num_actions=37):
+    inputs = layers.Input(shape=(37, 7,))
+    # Convolutions on the player deck state
+    layer1 = layers.Conv1D(32, 8, strides=4, activation="relu")(inputs)
+    layer2 = layers.Conv1D(64, 4, strides=2, activation="relu")(layer1)
+    layer3 = layers.Conv1D(64, 3, strides=1, activation="relu")(layer2)
 
-        # Convolutions on the frames on the screen
-        layer1 = layers.Conv1D(32, 8, strides=4, activation="relu")(inputs)
-        layer2 = layers.Conv1D(64, 4, strides=2, activation="relu")(layer1)
-        layer3 = layers.Conv1D(64, 3, strides=1, activation="relu")(layer2)
+    layer4 = layers.Flatten()(layer3)
 
-        layer4 = layers.Flatten()(layer3)
+    layer5 = layers.Dense(512, activation="relu")(layer4)
+    action = layers.Dense(num_actions, activation="linear")(layer5)
 
-        layer5 = layers.Dense(512, activation="relu")(layer4)
-        action = layers.Dense(num_actions, activation="linear")(layer5)
-
-        return tensorflow.keras.Model(inputs=inputs, outputs=action)
+    return tensorflow.keras.Model(inputs=inputs, outputs=action)
 
 
 class ExperienceReplay:
@@ -331,7 +328,8 @@ class Player(Deck):
             '''
             card_state[4] = card_value[4]
             '''                                     
-            Normalize round number (will be normalized after playing full episode)            
+            2. Will not be normalized cos we doesn't know the total rounds 
+            # 1. Normalize round number (will be normalized after playing full episode)            
             '''
             card_state[5] = card_value[5]
             '''                                     
@@ -386,21 +384,22 @@ class Player(Deck):
             # '''
             # turn_action_idx = self.convert_action_idx_2ohe(turn_action_idx)
             if turn_idx == len(self.episode_experience) - 1:
-                if np.max(turn_state[:, 5]) > max_round:
-                    max_round = np.max(turn_state[:, 5])
+                ''' Removed normalization for rounds '''
+                # if np.max(turn_state[:, 5]) > max_round:
+                #     max_round = np.max(turn_state[:, 5])
                 temp_reward = copy.deepcopy(reward)
                 next_state = copy.deepcopy(turn_state)
-                ''' 
-                Normalize q-ty of rounds in next_state
-                '''
-                next_state[:, 5] = next_state[:, 5] / max_round
+                # '''
+                # Normalize q-ty of rounds in next_state
+                # '''
+                # next_state[:, 5] = next_state[:, 5] / max_round
                 continue
             elif turn_idx == len(self.episode_experience) - 2:
                 turn_done = True
-            '''
-            Normalize q-ty of rounds in state
-            '''
-            turn_state[:, 5] = turn_state[:, 5] / max_round
+            # '''
+            # Normalize q-ty of rounds in state
+            # '''
+            # turn_state[:, 5] = turn_state[:, 5] / max_round
             if turn_reward == 0:
                 temp_reward = temp_reward * reward_decay
                 turn_reward = temp_reward
@@ -802,6 +801,114 @@ class Player(Deck):
         pass
 
 
+class AIPlayer(Player):
+    def __init__(self, player_number, player_type_num, model, epsilon ):
+        super().__init__(player_number, player_type_num)
+        self.nnmodel = model
+        self.epsilon = epsilon
+        pass
+
+    def set_epsilon(self, epsilon):
+        self.epsilon = epsilon
+        pass
+
+    def get_action(self, action_list):
+        if np.random.random() < self.epsilon:
+            action = random.choice(action_list)
+        else:
+            # Predict action Q-values
+            # From environment state
+            state_a = self.convert_deck_2state()
+            state_tensor = tf.convert_to_tensor(state_a)
+            state_tensor = tf.expand_dims(state_tensor, 0)
+            action_probs = self.nnmodel(state_tensor, training=False)
+            # Take best action
+            action = tf.argmax(action_probs[0]).numpy()
+        return action
+
+    def attacking(self):
+        # если на столе уже что-то есть
+        if len(self.desktop_list) > 0:
+            attack_list = self.get_validated_attack_list()
+            ''' 
+            Add to random choice one more option if we have something on table 
+            0 - pass
+            '''
+            attack_list.append(0)
+            if random.random() < self.epsilon:
+                if len(attack_list) > 0:
+                    action = random.choice(attack_list)
+                else:
+                    action = 0
+            else:
+                action = self.get_action(attack_list)
+        else:
+            if random.random() < self.epsilon:
+                action = random.choice(self.player_cards_onhand_list)
+            else:
+                action = self.get_action(self.player_cards_onhand_list)
+        return action
+
+    def defending(self):
+        if not self.attack_player_pass_flag or not self.passive_player_pass_flag:
+            check_parity = (len(self.desktop_list) + 1) % 2
+            if check_parity == 0:
+                # Последняя карта в десктоп листе
+                attacking_card = self.desktop_list[(len(self.desktop_list)) - 1]
+                # print ('Defending', defending_card)
+                defend_list = self.get_validated_defend_list(attacking_card)
+                if len(defend_list) > 0:
+                    ''' 
+                    Add to random choice one more option 
+                    0 - get cards
+                    '''
+                    defend_list.append(0)
+                    if random.random() < self.epsilon:
+                        action = random.choice(defend_list)
+                    else:
+                        action = self.get_action(defend_list)
+                else:
+                    action = 0
+            else:
+                action = -1
+        else:
+            # если мы ждем то пропускаем к следующему игроку (например когда пасует атакующий)
+            action = -1
+        return action
+
+    def passive_attacking(self):
+        if (0 < len(self.desktop_list) < 11) and self.attack_player_pass_flag:
+            attack_list = self.get_validated_attack_list()
+            if len(attack_list) > 0:
+                ''' 
+                Add to random choice one more option if we have something on table 
+                0 - pass
+                '''
+                attack_list.append(0)
+                if random.random() < self.epsilon:
+                    action = random.choice(attack_list)
+                else:
+                    action = self.get_action(attack_list)
+            else:
+                action = 0
+        else:
+            # если мы ждем то пропускаем к следующему игроку (например когда аттакует атакующий)
+            action = -1
+        return action
+
+    def analyze(self):
+        if self.action == 'Attack':
+            card_index = self.attacking()
+        elif self.action == 'Defend':
+            card_index = self.defending()
+        else:
+            """
+            self.action == 'Passive':
+            """
+            card_index = self.passive_attacking()
+        return card_index
+    pass
+
 class Table:
     def __init__(self, players_qty):
         # кол-во игроков
@@ -823,6 +930,7 @@ class Table:
         self.game_round: int = 0
         self.action: str = str()
         self.attack_player_empty_hand_flag = False
+
         self.pl: dict = {}
         for i in range(1, self.players_number + 1):
             self.players_numbers_lst.append(i)
@@ -1019,6 +1127,14 @@ class Table:
         # это карта', self.show_card(min_card_index[min_card_player]))
         return min_card_player, min_card_index[min_card_player]
 
+    def set_nnmodel(self, model):
+        self.nnmodel = model
+        pass
+
+    def set_epsilon(self, epsilon):
+        self.epsilon = epsilon
+        pass
+
     # Устанавливаем кол-во игроков
     def set_players(self):
         # Иницианилизируем работу класса игроков и делаем их словарем
@@ -1028,9 +1144,6 @@ class Table:
                 # self.pl[1] = Player(1, 1)
                 self.pl[1] = Player(1, 2)
             elif player_id == 2:
-                # Тип 3 - AI
-                self.pl[player_id] = Player(player_id, 3)
-            else:
                 # Тип 2 - Computer
                 self.pl[player_id] = Player(player_id, 2)
         pass
@@ -1713,6 +1826,8 @@ class Table:
 class Environment(Table):
     def __init__(self, players_qty, games_qty: int):
         super().__init__(players_qty)
+        self.nnmodel = tensorflow.keras.Model
+        self.epsilon = 0.0
         self.games_qty: int = games_qty
         self.game_idx: int = 0
         self.game_idxs: list = []
@@ -1763,6 +1878,29 @@ class Environment(Table):
         self.save_deck_order()
         pass
 
+    # Устанавливаем кол-во игроков
+    def set_players(self):
+        """
+        New set players method for training AI
+        Setup for types of players
+
+        Returns:
+            None
+        """
+        # Иницианилизируем работу класса игроков и делаем их словарем
+        self.print_msg(f'Кол-во игроков: {self.players_number}')
+        for player_id in self.players_numbers_lst:
+            if player_id == 1:
+                # self.pl[1] = Player(1, 1)
+                self.pl[1] = Player(1, 2)
+            elif player_id == 2:
+                # Тип 3 - AI
+                self.pl[player_id] = AIPlayer(player_id, 3, self.nnmodel, self.epsilon)
+            else:
+                # Тип 2 - Computer
+                self.pl[player_id] = Player(player_id, 2)
+        pass
+
     def reset(self) -> None:
         """
         Reset table (reinit)
@@ -1773,7 +1911,7 @@ class Environment(Table):
         super().__init__(self.players_qty)
         pass
 
-    def add_report_data(self):
+    def __add_report_data(self):
         self.game_idxs.append(self.game_idx)
         self.game_rounds.append(self.game_round)
         self.game_winners.append(self.winner)
@@ -1830,53 +1968,7 @@ class Environment(Table):
               f'==========================================\n'
         self.print_msg(msg)
         self.play_episode()
-        self.add_report_data()
-        pass
-
-    def train_ai(self, verbose=True):
-        win_condition = 2
-        self.verbose = verbose
-        ''' quantity of games for playing same deck shuffle'''
-        self.games_qty = 200
-        start_type_lst = ['same', 'next']
-        ai_wins = 0
-        row_wins = False
-        ''' we are play until ai wins 12 games in row '''
-        while ai_wins < win_condition:
-            for start_type in start_type_lst:
-                for game_idx in range(self.games_qty):
-                    if self.first_game:
-                        self.prepare_new_game()
-                    else:
-                        self.continue_series(start_type)
-                    msg = f'==========================================\n' \
-                          f'Игра № {self.game_idx:03d}\n' \
-                          f'==========================================\n'
-                    self.print_msg(msg)
-                    self.play_episode()
-                    self.add_report_data()
-                    self.game_idx += 1
-                    self.replay_buffer.extend(self.pl[2].episode_buffer)
-                    for ix, player_id in enumerate(self.episode_players_ranks):
-                        if ix+1 == 1:
-                            if player_id == 2:
-                                self.replay_buffer.extend(self.pl[2].episode_buffer)
-                                ai_wins += 1
-                                print(f'{ix + 1:02d}. {player_id:6d} {self.pl[player_id].game_turn:5d}')
-                            else:
-                                ai_wins = 0
-                    if self.verbose:
-                        print(f'### player turns')
-                        for ix, player_id in enumerate(self.episode_players_ranks):
-                            print(f'{ix + 1:02d}. {player_id:6d} {self.pl[player_id].game_turn:5d}')
-
-        print(f'#### rounds win loose   time')
-        for ix in range(len(self.game_idxs)):
-            msg = f'{self.game_idxs[ix]:07d} {self.game_rounds[ix]:6d} {self.game_winners[ix]:3d} ' \
-                  f'{self.game_losers[ix]:5d} {self.game_times[ix]:.4f}'
-            print(msg)
-        print(f'Total playing time: {sum(self.game_times):.4f}')
-        print(self.replay_buffer.__len__())
+        self.__add_report_data()
         pass
 
     def play_series(self, start_type='next'):
@@ -1915,6 +2007,71 @@ class Environment(Table):
         print(self.replay_buffer.__len__())
         pass
 
+    def train_episode_AI(self, start_type, model=q_model(), epsilon=0.0):
+        self.nnmodel = model
+        self.epsilon = epsilon
+        if self.first_game:
+            self.prepare_new_game()
+        else:
+            self.continue_series(start_type)
+        msg = f'==========================================\n' \
+              f'Игра № {self.game_idx:03d}\n' \
+              f'==========================================\n'
+        self.print_msg(msg)
+        self.play_episode()
+        self.game_idx += 1
+        self.__add_report_data()
+        self.replay_buffer.extend(self.pl[2].episode_buffer)
+        last_turn = self.pl[2].episode_buffer[-1]
+        _, _, turn_reward, _, _ = last_turn
+        return turn_reward
+
+    # def train_ai(self, verbose=True):
+    #     win_condition = 2
+    #     self.verbose = verbose
+    #     ''' quantity of games for playing same deck shuffle'''
+    #     self.games_qty = 200
+    #     start_type_lst = ['same', 'next']
+    #     ai_wins = 0
+    #     ''' we are play until ai wins 12 games in row '''
+    #     while ai_wins < win_condition:
+    #         for start_type in start_type_lst:
+    #             for game_idx in range(self.games_qty):
+    #                 if self.first_game:
+    #                     self.prepare_new_game()
+    #                 else:
+    #                     self.continue_series(start_type)
+    #                 msg = f'==========================================\n' \
+    #                       f'Игра № {self.game_idx:03d}\n' \
+    #                       f'==========================================\n'
+    #                 self.print_msg(msg)
+    #                 self.play_episode()
+    #                 self.__add_report_data()
+    #                 self.game_idx += 1
+    #                 self.replay_buffer.extend(self.pl[2].episode_buffer)
+    #                 for ix, player_id in enumerate(self.episode_players_ranks):
+    #                     if ix+1 == 1:
+    #                         if player_id == 2:
+    #                             self.replay_buffer.extend(self.pl[2].episode_buffer)
+    #                             ai_wins += 1
+    #                             print(f'{ix + 1:02d}. {player_id:6d} {self.pl[player_id].game_turn:5d}')
+    #                         else:
+    #                             ai_wins = 0
+    #                 if self.verbose:
+    #                     print(f'### player turns')
+    #                     for ix, player_id in enumerate(self.episode_players_ranks):
+    #                         print(f'{ix + 1:02d}. {player_id:6d} {self.pl[player_id].game_turn:5d}')
+    #
+    #     print(f'#### rounds win loose   time')
+    #     for ix in range(len(self.game_idxs)):
+    #         msg = f'{self.game_idxs[ix]:07d} {self.game_rounds[ix]:6d} {self.game_winners[ix]:3d} ' \
+    #               f'{self.game_losers[ix]:5d} {self.game_times[ix]:.4f}'
+    #         print(msg)
+    #     print(f'Total playing time: {sum(self.game_times):.4f}')
+    #     print(self.replay_buffer.__len__())
+    #     pass
+
+
 
 # Основное тело, перенести потом в инит часть логики
 if __name__ == '__main__':
@@ -1936,5 +2093,5 @@ if __name__ == '__main__':
     players_num = 4
     fool_game = Environment(players_num, games_num)
     fool_game.verbose = True
-    # fool_game.play_series(start_type='next')
-    fool_game.train_ai()
+    fool_game.play_series(start_type='next')
+    # fool_game.train_ai()
