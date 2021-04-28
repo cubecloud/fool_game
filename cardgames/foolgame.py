@@ -25,7 +25,7 @@ from tensorflow.keras.layers import Dense, Flatten, Input, Lambda, Conv2D, MaxPo
 from tensorflow.keras.layers import BatchNormalization
 from tensorflow.keras.optimizers import RMSprop, Adam, SGD, RMSprop
 
-__version__ = "0.0.60"
+__version__ = "0.0.61"
 
 Experience = collections.namedtuple('Experience', field_names=['state', 'action', 'reward', 'done', 'next_state'])
 
@@ -806,6 +806,7 @@ class AIPlayer(Player):
         super().__init__(player_number, player_type_num)
         self.nnmodel = model
         self.epsilon = epsilon
+        self.num_actions = 37
         pass
 
     def set_epsilon(self, epsilon):
@@ -822,8 +823,15 @@ class AIPlayer(Player):
             state_tensor = tf.convert_to_tensor(state_a)
             state_tensor = tf.expand_dims(state_tensor, 0)
             action_probs = self.nnmodel(state_tensor, training=False)
+            print(action_probs)
             # Take best action
+            masks = tf.one_hot(action_list, self.num_actions)
+            valid_actions = tf.multiply(action_probs, masks)
+            print(valid_actions)
             action = tf.argmax(action_probs[0]).numpy()
+            action = tf.argmax(valid_actions[0]).numpy()
+            print(valid_actions[0])
+            print(action)
         return action
 
     def attacking(self):
