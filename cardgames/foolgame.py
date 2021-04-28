@@ -25,13 +25,13 @@ from tensorflow.keras.layers import Dense, Flatten, Input, Lambda, Conv2D, MaxPo
 from tensorflow.keras.layers import BatchNormalization
 from tensorflow.keras.optimizers import RMSprop, Adam, SGD, RMSprop
 
-__version__ = "0.0.81"
+__version__ = "0.0.82"
 
 Experience = collections.namedtuple('Experience', field_names=['state', 'action', 'reward', 'done', 'next_state'])
 
 
 def q_model(num_actions=37):
-    initializer = tf.keras.initializers.RandomUniform(minval=0., maxval=0.025)
+    initializer = tf.keras.initializers.RandomUniform(minval=0., maxval=0.05)
     inputs = layers.Input(shape=(37, 7,))
     # Convolutions on the player deck state
     layer1 = layers.Conv1D(24, 8, strides=4, activation="relu", kernel_initializer=initializer)(inputs)
@@ -328,12 +328,15 @@ class Player(Deck):
             do not need normalization
             '''
             card_state[4] = card_value[4]
-            '''                                     
+            '''
+            # 5. Normalized /100
+            # 4. Normalized                                      
             # 3. Normalized /100
             # 2. Will not be normalized cos we doesn't know the total rounds 
             # 1. Normalize round number (will be normalized after playing full episode)            
             '''
-            card_state[5] = card_value[5]
+            card_state[5] = card_value[5]/10
+            # card_state[5] = card_value[5]
             # card_state[5] = card_value[5]/100
             '''                                     
             Normalize card weight (max card_weight=34)
