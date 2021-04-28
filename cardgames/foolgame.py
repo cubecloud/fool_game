@@ -21,11 +21,11 @@ import time
 import tensorflow as tf
 import tensorflow.keras
 from tensorflow.keras import layers
-from tensorflow.keras.layers import Dense, Flatten, Input, Lambda, Conv2D, MaxPooling2D, Reshape, Multiply
-from tensorflow.keras.layers import BatchNormalization
-from tensorflow.keras.optimizers import RMSprop, Adam, SGD, RMSprop
+# from tensorflow.keras.layers import Dense, Flatten, Input, Lambda, Conv2D, MaxPooling2D, Reshape, Multiply
+# from tensorflow.keras.layers import BatchNormalization
+# from tensorflow.keras.optimizers import RMSprop, Adam, SGD, RMSprop
 
-__version__ = "0.0.82"
+__version__ = "0.0.83"
 
 Experience = collections.namedtuple('Experience', field_names=['state', 'action', 'reward', 'done', 'next_state'])
 
@@ -827,20 +827,21 @@ class AIPlayer(Player):
         else:
             # Predict action Q-values
             # From environment state
-            print(self.action, action_list)
+
             state_a = self.convert_deck_2state()
             state_tensor = tf.convert_to_tensor(state_a)
             state_tensor = tf.expand_dims(state_tensor, 0)
             action_probs = self.nnmodel(state_tensor, training=False)
-            print(action_probs)
+            # print(action_probs)
             # Take best action
             masks = tf.one_hot(action_list, self.num_actions)
             # print(masks.numpy)
             valid_actions = tf.expand_dims(tf.reduce_sum(tf.multiply(action_probs, masks), axis=0), 0)
             # valid_actions = tf.expand_dims(valid_actions, 0)
-            print(valid_actions.numpy())
+            # print(valid_actions.numpy())
             # action = tf.argmax(action_probs[0]).numpy()
             action = np.argmax(valid_actions)
+            print(self.action, action_list)
             print(action)
             if not (action in action_list):
                 action = action_list[0]
