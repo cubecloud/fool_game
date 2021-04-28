@@ -25,7 +25,7 @@ from tensorflow.keras.layers import Dense, Flatten, Input, Lambda, Conv2D, MaxPo
 from tensorflow.keras.layers import BatchNormalization
 from tensorflow.keras.optimizers import RMSprop, Adam, SGD, RMSprop
 
-__version__ = "0.0.62"
+__version__ = "0.0.63"
 
 Experience = collections.namedtuple('Experience', field_names=['state', 'action', 'reward', 'done', 'next_state'])
 
@@ -375,7 +375,7 @@ class Player(Deck):
     def add_episode_experience(self, reward):
         reward_decay = 0.99
         temp_reward = 0
-        max_round: int = 0
+        # max_round: int = 0
         next_state = self.zeros_state
         for turn_idx in range(len(self.episode_experience) - 1, -1, -1):
             turn_state, turn_action_idx, turn_reward, turn_done = self.episode_experience[turn_idx]
@@ -819,6 +819,7 @@ class AIPlayer(Player):
         else:
             # Predict action Q-values
             # From environment state
+            print(action_list)
             state_a = self.convert_deck_2state()
             state_tensor = tf.convert_to_tensor(state_a)
             state_tensor = tf.expand_dims(state_tensor, 0)
@@ -827,7 +828,7 @@ class AIPlayer(Player):
             # Take best action
             masks = tf.one_hot(action_list, self.num_actions)
             print(masks)
-            valid_actions = tf.multiply(action_probs, masks)
+            valid_actions = tf.reduce_sum(tf.multiply(action_probs, masks), axis=1)
             print(valid_actions)
             action = tf.argmax(action_probs[0]).numpy()
             action = tf.argmax(valid_actions[0]).numpy()
