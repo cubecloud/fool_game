@@ -25,7 +25,7 @@ from tensorflow.keras import layers
 # from tensorflow.keras.layers import BatchNormalization
 # from tensorflow.keras.optimizers import RMSprop, Adam, SGD, RMSprop
 
-__version__ = "0.0.84"
+__version__ = "0.0.85"
 
 Experience = collections.namedtuple('Experience', field_names=['state', 'action', 'reward', 'done', 'next_state'])
 
@@ -841,8 +841,8 @@ class AIPlayer(Player):
             # print(valid_actions.numpy())
             # action = tf.argmax(action_probs[0]).numpy()
             action = np.argmax(valid_actions)
-            print(self.action, action_list)
-            print(action)
+            # print(self.action, action_list)
+            # print(action)
             if not (action in action_list):
                 action = action_list[0]
         return action
