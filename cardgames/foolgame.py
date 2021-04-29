@@ -25,22 +25,22 @@ from tensorflow.keras import layers
 # from tensorflow.keras.layers import BatchNormalization
 # from tensorflow.keras.optimizers import RMSprop, Adam, SGD, RMSprop
 
-__version__ = "0.0.85"
+__version__ = "0.0.87"
 
 Experience = collections.namedtuple('Experience', field_names=['state', 'action', 'reward', 'done', 'next_state'])
 
 
-def q_model(num_actions=37):
+def q_model(in_shape=(37, 25,), num_actions=37):
     initializer = tf.keras.initializers.RandomUniform(minval=0., maxval=0.05)
-    inputs = layers.Input(shape=(37, 7,))
+    inputs = layers.Input(shape=in_shape)
     # Convolutions on the player deck state
-    layer1 = layers.Conv1D(24, 8, strides=4, activation="relu", kernel_initializer=initializer)(inputs)
-    layer2 = layers.Conv1D(48, 4, strides=2, activation="relu", kernel_initializer=initializer)(layer1)
-    layer3 = layers.Conv1D(48, 3, strides=1, activation="relu", kernel_initializer=initializer)(layer2)
+    layer1 = layers.Conv1D(32, 8, strides=4, activation="relu", kernel_initializer=initializer)(inputs)
+    layer2 = layers.Conv1D(64, 4, strides=2, activation="relu", kernel_initializer=initializer)(layer1)
+    layer3 = layers.Conv1D(64, 3, strides=1, activation="relu", kernel_initializer=initializer)(layer2)
 
     layer4 = layers.Flatten()(layer3)
 
-    layer5 = layers.Dense(256, activation="relu", kernel_initializer=initializer)(layer4)
+    layer5 = layers.Dense(256, activation="relu")(layer4)
     action = layers.Dense(num_actions, activation="linear")(layer5)
 
     return tensorflow.keras.Model(inputs=inputs, outputs=action)
@@ -294,40 +294,50 @@ class Player(Deck):
         self.zero_action_idx: int = 0
         pass
 
+    @staticmethod
+    def convert_2ohe(value, max_value, min_value=1):
+        ohe = np.zeros((max_value, ), dtype=np.float32)
+        ohe[value-min_value] = 1
+        return list(ohe)
+
     def convert_deck_2state(self) -> np.array:
         """
         Returns:
             state (np.array):   deck dictionary converted to state
         """
         state = []
-        card_state: list = [0, 0, 0, 0, 0, 0, 0]
+        card_state: list = []
         '''
         Add Zero action_idx to states (pass)
         '''
         state.append(list(card_state))
         for card_value in self.player_deck.values():
             '''
-            Normalize suits data - 4 suits
+            ohe suits data - 4 suits
             '''
-            card_state[0] = card_value[0] / 4
+            card_state.extend(self.convert_2ohe(card_value[0], 4))
             '''
-            Normalize rang of card data (9 cards)
+            ohe rank of card data (9 cards)
             '''
-            card_state[1] = card_value[1] / 9
+            card_state.extend(self.convert_2ohe(card_value[1], 9))
             '''
-            Normalize card as property of player (self.players_number)
+            ohe card as property of player (self.players_number)
+            # Normalize card as property of player (self.players_number)
             '''
-            card_state[2] = card_value[2] / self.players_number
-
+            card_state.extend(self.convert_2ohe(card_value[2], self.players_number))
+            # card_state[2] = card_value[2] / self.players_number
             '''
-            Normalize card status (possible statuses = 4 (0 not included))
+            ohe card status (possible statuses = 5 (0 included))
+            # Normalize card status (possible statuses = 4 (0 not included))
             '''
-            card_state[3] = card_value[3] / 4
+            card_state.extend(self.convert_2ohe(card_value[3], 5, min_value=0))
+            # card_state[3] = card_value[3] / 4
             '''                    
             Normalize card graveyard status (zero or 1)
             do not need normalization
             '''
-            card_state[4] = card_value[4]
+            card_state.append(card_value[4])
+            # card_state[4] = card_value[4]
             '''
             # 5. Normalized /10
             # 4. Normalized                                      
@@ -335,14 +345,20 @@ class Player(Deck):
             # 2. Will not be normalized cos we doesn't know the total rounds 
             # 1. Normalize round number (will be normalized after playing full episode)            
             '''
-            card_state[5] = card_value[5]/10
+            card_state.append(card_value[5]/10)
+            # card_state[5] = card_value[5]/10
             # card_state[5] = card_value[5]
             # card_state[5] = card_value[5]/100
             '''                                     
             Normalize card weight (max card_weight=34)
             '''
-            card_state[6] = card_value[6] / 34
+            # card_state.extend(self.convert_2ohe(card_value[6], 34, min_value=0))
+            # card_state[6] = card_value[6] / 34
+            card_state.append(card_value[6] / 34)
+
             state.append(copy.deepcopy(card_state))
+            card_state: list = []
+        state[0] = [0 for _ in range(len(state[-1]))]
         return np.array(state, dtype=np.float32)
 
     def add_turn_experience(self, action_idx) -> None:
@@ -2033,6 +2049,7 @@ class Environment(Table):
         pass
 
     def train_episode_AI(self, start_type, model=q_model(), epsilon=0.0):
+
         self.nnmodel = model
         self.epsilon = epsilon
         if self.first_game:
@@ -2047,7 +2064,7 @@ class Environment(Table):
         self.game_idx += 1
         self.__add_report_data()
         self.game_turns = self.pl[2].game_turn-1
-        self.replay_buffer.extend(self.pl[2].episode_buffer)
+        # self.replay_buffer.extend(self.pl[2].episode_buffer)
 
         last_turn = self.pl[2].episode_buffer[-1]
         _, _, turn_reward, _, _ = last_turn
