@@ -25,7 +25,7 @@ from tensorflow.keras import layers
 # from tensorflow.keras.layers import BatchNormalization
 # from tensorflow.keras.optimizers import RMSprop, Adam, SGD, RMSprop
 
-__version__ = "0.0.96"
+__version__ = "0.01.01"
 
 Experience = collections.namedtuple('Experience', field_names=['state', 'action', 'reward', 'done', 'next_state'])
 
@@ -41,7 +41,7 @@ def q_model(in_shape=(37, 24,), num_actions=37):
     layer4 = layers.Flatten()(layer3)
 
     layer5 = layers.Dense(256, activation="relu")(layer4)
-    action = layers.Dense(num_actions, activation="linear")(layer5)
+    action = layers.Dense(num_actions, activation="linear", kernel_initializer=initializer)(layer5)
 
     return tensorflow.keras.Model(inputs=inputs, outputs=action)
 
@@ -267,30 +267,30 @@ class Player(Deck):
         self.trump_index = None
         self.trump_char: str = ''
         self.trump_range = tuple
-        self.turn_state = np.zeros(shape=(36, 7), dtype=np.int8)
-        self.zeros_state = np.zeros(shape=(36, 7), dtype=np.int8)
+        self.turn_state = np.zeros(shape=(36, 20+self.players_number), dtype=np.int8)
+        self.zeros_state = np.zeros(shape=(36, 20+self.players_number), dtype=np.int8)
         self.turn_action_idx: int = 0
         self.turn_experience = tuple()
         self.round_experience: list = []
         self.episode_experience: list = []
         self.episode_buffer: list = []
-
-        ''' 
-        Zero reward - should be added at the end of episode 
+        self.game_reward: float = 0
+        '''
+        Zero reward - should be added at the end of episode
         float type
         '''
         self.zero_reward: float = 0
-        ''' 
-        Zero done flag 
+        '''
+        Zero done flag
         for signal of ending of playing in current episode for this player
-        True should be added at the end of episode 
+        True should be added at the end of episode
         False(0) or True(1)
         '''
         self.zero_done: float = 0
-        ''' 
-        Zero action index 
+        '''
+        Zero action index
         for signal of ending of playing in current episode for this player
-        form -1 to 36 (now we are using 0-37 vector w/o -1) 
+        form -1 to 36 (now we are using 0-37 vector w/o -1)
         '''
         self.zero_action_idx: int = 0
         pass
@@ -1328,6 +1328,7 @@ class Table:
                     # rank_reward = 1 - (2 / (self.players_qty - 1)) * (len(self.episode_players_ranks) - 1)
                     # rank_reward = (1/self.players_qty) * (self.players_qty - (len(self.episode_players_ranks) - 1))
                     rank_reward = self.calc_rank_reward()
+                    self.pl[player_id].game_reward = float(rank_reward)
                     self.pl[player_id].add_round_experience()
                     self.pl[player_id].add_episode_experience(rank_reward)
 
@@ -1348,6 +1349,7 @@ class Table:
                         # rank_reward = (1 / self.players_qty) * (
                         #             self.players_qty - (len(self.episode_players_ranks) - 1))
                         rank_reward = self.calc_rank_reward()
+                        self.pl[self.looser].game_reward = float(rank_reward)
                         self.pl[self.looser].add_round_experience()
                         self.pl[self.looser].add_episode_experience(rank_reward)
                     # print(self.looser)
@@ -1998,6 +2000,8 @@ class Environment(Table):
         if self.verbose:
             self.reset()
             self.verbose = True
+        else:
+            self.reset()
         self.load_deck_order()
         self.start_time = time.time()
         self.set_table(start_table=start_type)
@@ -2074,30 +2078,30 @@ class Environment(Table):
             self.prepare_new_game()
         else:
             self.continue_series(start_type)
+        self.game_idx += 1
         msg = f'==========================================\n' \
               f'Игра № {self.game_idx:03d}\n' \
               f'==========================================\n'
         self.print_msg(msg)
         self.play_episode()
-        self.game_idx += 1
         self.__add_report_data()
         self.game_turns = self.pl[2].game_turn-1
         ''' add data to buffer at training circle if reward is high '''
         # self.replay_buffer.extend(self.pl[2].episode_buffer)
-        last_turn = self.pl[2].episode_buffer[-1]
-        _, _, turn_reward, _, _ = last_turn
+        # last_turn = self.pl[2].episode_buffer[-1]
+        # _, _, turn_reward, _, _ = last_turn
         if self.verbose:
             print(f'### player turns')
             for ix, player_id in enumerate(self.episode_players_ranks):
                 print(f'{ix + 1:02d}. {player_id:6d} {self.pl[player_id].game_turn:5d} '
-                      f'{turn_reward if player_id == 2 else "Nan"}')
+                      f'{self.pl[player_id].game_reward if player_id == 2 else "Nan"}')
 
         # print(f'####### rounds win loose   time')
         # for ix in range(len(self.game_losers)):
         #     msg = f'{self.game_idxs[ix]:07d} {self.game_rounds[ix]:6d} {self.game_winners[ix]:3d} ' \
         #           f'{self.game_losers[ix]:5d} {self.game_times[ix]:.4f}'
         #     print(msg)
-        return turn_reward
+        return self.pl[2].game_reward, self.pl[2].episode_buffer
 
     # def train_ai(self, verbose=True):
     #     win_condition = 2
@@ -2163,11 +2167,21 @@ if __name__ == '__main__':
     #         break
     #     except (TypeError, ValueError):
     #         print("Неправильный ввод")
-    players_num = 2
+    players_num = 4
+    model = q_model(in_shape=(37, 20+players_num,), num_actions=37)
     fool_game = Environment(players_num,
                             games_num,
-                            q_model(in_shape=(37, 20+players_num,), num_actions=37))
-    fool_game.verbose = True
+                            model)
+    fool_game.verbose = False
     # fool_game.play_series(start_type='next')
-    reward = fool_game.train_episode_AI(start_type='next', epsilon=.99)
+    count = 0
+    total_count = 0
+    while count < 15:
+        reward, episode_buffer = fool_game.train_episode_AI(start_type='next', epsilon=.99)
+        print(f'Episode buffer length: {len(episode_buffer)}')
+        if reward != 0:
+            count += 1
+            print(f'Counted: {count}/{total_count}')
+        total_count += 1
+
     # fool_game.train_episode_AI(start_type='next', epsilon=.5)
