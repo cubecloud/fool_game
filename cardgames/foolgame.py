@@ -21,11 +21,12 @@ import time
 import tensorflow as tf
 import tensorflow.keras
 from tensorflow.keras import layers
+
 # from tensorflow.keras.layers import Dense, Flatten, Input, Lambda, Conv2D, MaxPooling2D, Reshape, Multiply
 # from tensorflow.keras.layers import BatchNormalization
 # from tensorflow.keras.optimizers import RMSprop, Adam, SGD, RMSprop
 
-__version__ = "0.01.01"
+__version__ = "0.01.08"
 
 Experience = collections.namedtuple('Experience', field_names=['state', 'action', 'reward', 'done', 'next_state'])
 
@@ -1170,9 +1171,9 @@ class Table:
         self.nnmodel = model
         pass
 
-    def set_epsilon(self, epsilon):
-        self.epsilon = epsilon
-        pass
+    # def set_epsilon(self, epsilon):
+    #     self.epsilon = epsilon
+    #     pass
 
     # Устанавливаем кол-во игроков
     def set_players(self):
@@ -1312,9 +1313,15 @@ class Table:
             self.congratulations()
         return result
 
-    def calc_rank_reward(self ):
+    def calc_rank_reward(self):
         rank_rewards_lst = list(np.linspace(1.0, 0.0, num=self.players_qty))
         rank_reward = rank_rewards_lst[len(self.episode_players_ranks)-1]
+        # try:
+        #     rank_reward = rank_rewards_lst[len(self.episode_players_ranks)-1]
+        # except IndexError:
+        #     print(f'rank_rewards_lst: {rank_rewards_lst}, len-1: {len(self.episode_players_ranks)-1}, '
+        #           f'players_ranks: {self.episode_players_ranks}')
+        #     sys.exit()
         return rank_reward
 
     def is_this_end_of_game(self) -> bool:
@@ -1323,7 +1330,8 @@ class Table:
         players_id_lst = list(self.players_numbers_lst)
         for player_id in players_id_lst:
             if self.if_player_hand_and_deck_empty(player_id):
-                self.episode_players_ranks.append(player_id)
+                if not (player_id in self.episode_players_ranks):
+                    self.episode_players_ranks.append(player_id)
                 if self.pl[player_id].player_type == 'AI':
                     # rank_reward = 1 - (2 / (self.players_qty - 1)) * (len(self.episode_players_ranks) - 1)
                     # rank_reward = (1/self.players_qty) * (self.players_qty - (len(self.episode_players_ranks) - 1))
@@ -1332,10 +1340,6 @@ class Table:
                     self.pl[player_id].add_round_experience()
                     self.pl[player_id].add_episode_experience(rank_reward)
 
-                # if player_id == self.winner:
-                #     ''' Add round experience '''
-                #     self.pl[player_id].add_round_experience()
-                #     self.pl[player_id].add_episode_experience(1.0)
                 self.print_msg(
                     f'Игрок № {player_id}, заканчивает игру. Остается {self.players_number - 1} игроков')
                 self.show_desktop()
@@ -1352,15 +1356,17 @@ class Table:
                         self.pl[self.looser].game_reward = float(rank_reward)
                         self.pl[self.looser].add_round_experience()
                         self.pl[self.looser].add_episode_experience(rank_reward)
-                    # print(self.looser)
-                    # '''
-                    # Add round experience
-                    # '''
-                    # self.pl[player_id].add_round_experience()
-                    # '''
-                    # remarked for testing purpose
-                    # '''
-                    # self.pl[self.looser].add_episode_experience(-1.0)
+                        # if not (self.looser in self.episode_players_ranks):
+
+                        # print(self.looser)
+                        # '''
+                        # Add round experience
+                        # '''
+                        # self.pl[player_id].add_round_experience()
+                        # '''
+                        # remarked for testing purpose
+                        # '''
+                        # self.pl[self.looser].add_episode_experience(-1.0)
                     result = True
                 self.one_more_is_out(player_id)
         return result
@@ -2178,7 +2184,8 @@ if __name__ == '__main__':
     total_count = 0
     while count < 15:
         reward, episode_buffer = fool_game.train_episode_AI(start_type='next', epsilon=.99)
-        print(f'Episode buffer length: {len(episode_buffer)}')
+        print(fool_game.episode_players_ranks)
+        print(f'Reward: {reward}, Episode buffer length: {len(episode_buffer)}')
         if reward != 0:
             count += 1
             print(f'Counted: {count}/{total_count}')
