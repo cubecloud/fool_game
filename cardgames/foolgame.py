@@ -13,6 +13,8 @@
 #  limitations under the License.
 
 import random
+from abc import ABC
+
 import numpy as np
 import pickle as pkl
 import collections
@@ -26,25 +28,74 @@ from tensorflow.keras import layers
 # from tensorflow.keras.layers import BatchNormalization
 # from tensorflow.keras.optimizers import RMSprop, Adam, SGD, RMSprop
 
-__version__ = "0.01.08"
+__version__ = "0.01.10"
 
 Experience = collections.namedtuple('Experience', field_names=['state', 'action', 'reward', 'done', 'next_state'])
 
 
-def q_model(in_shape=(37, 24,), num_actions=37):
-    initializer = tf.keras.initializers.RandomUniform(minval=0., maxval=0.05)
-    inputs = layers.Input(shape=in_shape)
-    # Convolutions on the player deck state
-    layer1 = layers.Conv1D(32, 8, strides=4, activation="relu", kernel_initializer=initializer)(inputs)
-    layer2 = layers.Conv1D(64, 4, strides=2, activation="relu", kernel_initializer=initializer)(layer1)
-    layer3 = layers.Conv1D(64, 3, strides=1, activation="relu", kernel_initializer=initializer)(layer2)
+class DQNConv(tf.keras.Model):
+    def __init__(self, input_shape=(37, 24), output_shape=37, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.initializer = tf.keras.initializers.RandomUniform(minval=0., maxval=0.05)
+        self.x_input = layers.Input(shape=input_shape)
+        self.layer1 = layers.Conv1D(32, 8, strides=4, activation="relu", kernel_initializer=self.initializer)
+        self.layer2 = layers.Conv1D(64, 4, strides=2, activation="relu", kernel_initializer=self.initializer)
+        self.layer3 = layers.Conv1D(64, 3, strides=1, activation="relu", kernel_initializer=self.initializer)
+        self.layer4 = layers.Flatten()
+        self.layer5 = layers.Dense(512, activation="relu", kernel_initializer=self.initializer)
+        self.x_output = layers.Dense(output_shape, activation="linear", kernel_initializer=self.initializer)
 
-    layer4 = layers.Flatten()(layer3)
+    def call(self, inputs, training=None, mask=None):
+        x_in = self.input(inputs)
+        x = self.layer1(x_in)
+        x = self.layer2(x)
+        x = self.layer3(x)
+        x = self.layer4(x)
+        x = self.layer5(x)
+        y_out = self.output(x)
+        return y_out
 
-    layer5 = layers.Dense(256, activation="relu")(layer4)
-    action = layers.Dense(num_actions, activation="linear", kernel_initializer=initializer)(layer5)
 
-    return tensorflow.keras.Model(inputs=inputs, outputs=action)
+class DQNDense(tf.keras.Model):
+    def __init__(self, input_shape=(37, 24), output_shape=37, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.initializer = tf.keras.initializers.RandomUniform(minval=0., maxval=0.05)
+        self.x_input = layers.Input(shape=input_shape)
+        self.layer1 = layers.Dense(128, activation="relu", kernel_initializer=self.initializer)
+        self.layer2 = layers.Dense(256, activation="relu", kernel_initializer=self.initializer)
+        self.y_output = layers.Dense(output_shape, activation="softmax", kernel_initializer=self.initializer)
+
+    def call(self, inputs, training=None, mask=None):
+        x_in = self.x_input(inputs)
+        x = self.layer1(x_in)
+        x = self.layer2(x)
+        y_out = self.y_output(x)
+        return y_out
+
+# def q_model_conv(in_shape=(37, 24,), num_actions=37):
+#     initializer = tf.keras.initializers.RandomUniform(minval=0., maxval=0.05)
+#     inputs = layers.Input(shape=in_shape)
+#     # Convolutions on the player deck state
+#     layer1 = layers.Conv1D(32, 8, strides=4, activation="relu", kernel_initializer=initializer)(inputs)
+#     layer2 = layers.Conv1D(64, 4, strides=2, activation="relu", kernel_initializer=initializer)(layer1)
+#     layer3 = layers.Conv1D(64, 3, strides=1, activation="relu", kernel_initializer=initializer)(layer2)
+#
+#     layer4 = layers.Flatten()(layer3)
+#
+#     layer5 = layers.Dense(512, activation="relu")(layer4)
+#     action = layers.Dense(num_actions, activation="linear", kernel_initializer=initializer)(layer5)
+#
+#     return tensorflow.keras.Model(inputs=inputs, outputs=action)
+
+
+# def q_model_dense(in_shape=(37, 24,), num_actions=37):
+#     initializer = tf.keras.initializers.RandomUniform(minval=0., maxval=0.05)
+#     inputs = layers.Input(shape=in_shape)
+#     # Convolutions on the player deck state
+#     layer1 = layers.Dense(128, activation="relu", kernel_initializer=initializer)(inputs)
+#     layer2 = layers.Dense(256, activation="relu", kernel_initializer=initializer)(layer1)
+#     action = layers.Dense(num_actions, activation="linear", kernel_initializer=initializer)(layer2)
+#     return tensorflow.keras.Model(inputs=inputs, outputs=action)
 
 
 class ExperienceReplay:
@@ -1898,7 +1949,8 @@ class Environment(Table):
         self.game_turns: int = 0
         self.first_game = True
         self.saved_playing_deck_order = []
-        self.replay_buffer = ExperienceReplay(None)
+        # self.replay_buffer = ExperienceReplay(None)
+        self.replay_buffer = ExperienceReplay(12000)
         self.verbose = False
         self.train_process = True
         self.nnmodel = nnmodel
@@ -2174,7 +2226,9 @@ if __name__ == '__main__':
     #     except (TypeError, ValueError):
     #         print("Неправильный ввод")
     players_num = 4
-    model = q_model(in_shape=(37, 20+players_num,), num_actions=37)
+    # model = q_model_conv(in_shape=(37, 20 + players_num,), num_actions=37)
+    model = DQNDense(input_shape=(37, 20 + players_num,), output_shape=37)
+
     fool_game = Environment(players_num,
                             games_num,
                             model)
