@@ -25,12 +25,12 @@ from tensorflow.keras import layers
 # from tensorflow.keras.layers import BatchNormalization
 # from tensorflow.keras.optimizers import RMSprop, Adam, SGD, RMSprop
 
-__version__ = "0.0.87"
+__version__ = "0.0.96"
 
 Experience = collections.namedtuple('Experience', field_names=['state', 'action', 'reward', 'done', 'next_state'])
 
 
-def q_model(in_shape=(37, 25,), num_actions=37):
+def q_model(in_shape=(37, 24,), num_actions=37):
     initializer = tf.keras.initializers.RandomUniform(minval=0., maxval=0.05)
     inputs = layers.Input(shape=in_shape)
     # Convolutions on the player deck state
@@ -158,21 +158,21 @@ class Deck:
     def __init__(self):
         self.player_deck = {
             # Это инициализация масти пики - 9 карт от 6 пик до туза пик
-            1: [1, 1, 0, 0, 0, 0, 6], 2: [1, 2, 0, 0, 0, 0, 7], 3: [1, 3, 0, 0, 0, 0, 8],
-            4: [1, 4, 0, 0, 0, 0, 9], 5: [1, 5, 0, 0, 0, 0, 10], 6: [1, 6, 0, 0, 0, 0, 11],
-            7: [1, 7, 0, 0, 0, 0, 12], 8: [1, 8, 0, 0, 0, 0, 13], 9: [1, 9, 0, 0, 0, 0, 14],
+            1: [1, 1, 0, 0, 0, 0, 1], 2: [1, 2, 0, 0, 0, 0, 2], 3: [1, 3, 0, 0, 0, 0, 3],
+            4: [1, 4, 0, 0, 0, 0, 4], 5: [1, 5, 0, 0, 0, 0, 5], 6: [1, 6, 0, 0, 0, 0, 6],
+            7: [1, 7, 0, 0, 0, 0, 7], 8: [1, 8, 0, 0, 0, 0, 8], 9: [1, 9, 0, 0, 0, 0, 9],
             # Это инициализация масти крести - 9 карт от 6 крестей до туза крестей
-            10: [2, 1, 0, 0, 0, 0, 6], 11: [2, 2, 0, 0, 0, 0, 7], 12: [2, 3, 0, 0, 0, 0, 8],
-            13: [2, 4, 0, 0, 0, 0, 9], 14: [2, 5, 0, 0, 0, 0, 10], 15: [2, 6, 0, 0, 0, 0, 11],
-            16: [2, 7, 0, 0, 0, 0, 12], 17: [2, 8, 0, 0, 0, 0, 13], 18: [2, 9, 0, 0, 0, 0, 14],
+            10: [2, 1, 0, 0, 0, 0, 1], 11: [2, 2, 0, 0, 0, 0, 2], 12: [2, 3, 0, 0, 0, 0, 3],
+            13: [2, 4, 0, 0, 0, 0, 4], 14: [2, 5, 0, 0, 0, 0, 5], 15: [2, 6, 0, 0, 0, 0, 6],
+            16: [2, 7, 0, 0, 0, 0, 7], 17: [2, 8, 0, 0, 0, 0, 8], 18: [2, 9, 0, 0, 0, 0, 9],
             # Это инициализация масти буби - 9 карт от 6 бубей до туза бубей
-            19: [3, 1, 0, 0, 0, 0, 6], 20: [3, 2, 0, 0, 0, 0, 7], 21: [3, 3, 0, 0, 0, 0, 8],
-            22: [3, 4, 0, 0, 0, 0, 9], 23: [3, 5, 0, 0, 0, 0, 10], 24: [3, 6, 0, 0, 0, 0, 11],
-            25: [3, 7, 0, 0, 0, 0, 12], 26: [3, 8, 0, 0, 0, 0, 13], 27: [3, 9, 0, 0, 0, 0, 14],
+            19: [3, 1, 0, 0, 0, 0, 1], 20: [3, 2, 0, 0, 0, 0, 2], 21: [3, 3, 0, 0, 0, 0, 3],
+            22: [3, 4, 0, 0, 0, 0, 4], 23: [3, 5, 0, 0, 0, 0, 5], 24: [3, 6, 0, 0, 0, 0, 6],
+            25: [3, 7, 0, 0, 0, 0, 7], 26: [3, 8, 0, 0, 0, 0, 8], 27: [3, 9, 0, 0, 0, 0, 9],
             # Это инициализация масти черви - 9 карт от 6 червей до туза червей
-            28: [4, 1, 0, 0, 0, 0, 6], 29: [4, 2, 0, 0, 0, 0, 7], 30: [4, 3, 0, 0, 0, 0, 8],
-            31: [4, 4, 0, 0, 0, 0, 9], 32: [4, 5, 0, 0, 0, 0, 10], 33: [4, 6, 0, 0, 0, 0, 11],
-            34: [4, 7, 0, 0, 0, 0, 12], 35: [4, 8, 0, 0, 0, 0, 13], 36: [4, 9, 0, 0, 0, 0, 14],
+            28: [4, 1, 0, 0, 0, 0, 1], 29: [4, 2, 0, 0, 0, 0, 2], 30: [4, 3, 0, 0, 0, 0, 3],
+            31: [4, 4, 0, 0, 0, 0, 4], 32: [4, 5, 0, 0, 0, 0, 5], 33: [4, 6, 0, 0, 0, 0, 6],
+            34: [4, 7, 0, 0, 0, 0, 7], 35: [4, 8, 0, 0, 0, 0, 8], 36: [4, 9, 0, 0, 0, 0, 9],
         }
 
         self.suit_range = {'П': (1, 10), 'К': (10, 19), 'Б': (19, 28), 'Ч': (28, 37)}
@@ -196,6 +196,7 @@ class Deck:
 
     def change_card_weight(self, index, new_weight):
         self.player_deck[index][6] = new_weight
+        pass
 
     def get_card_weight(self, index):
         return self.player_deck[index][6]
@@ -339,13 +340,14 @@ class Player(Deck):
             card_state.append(card_value[4])
             # card_state[4] = card_value[4]
             '''
+            # 6. remove round number completely
             # 5. Normalized /10
             # 4. Normalized                                      
             # 3. Normalized /100
             # 2. Will not be normalized cos we doesn't know the total rounds 
             # 1. Normalize round number (will be normalized after playing full episode)            
             '''
-            card_state.append(card_value[5]/10)
+            # card_state.append(card_value[5]/10)
             # card_state[5] = card_value[5]/10
             # card_state[5] = card_value[5]
             # card_state[5] = card_value[5]/100
@@ -354,7 +356,7 @@ class Player(Deck):
             '''
             # card_state.extend(self.convert_2ohe(card_value[6], 34, min_value=0))
             # card_state[6] = card_value[6] / 34
-            card_state.append(card_value[6] / 34)
+            card_state.append(card_value[6] / 18)
 
             state.append(copy.deepcopy(card_state))
             card_state: list = []
@@ -782,7 +784,7 @@ class Player(Deck):
         # trump in current game status
         status[1] = 4
         self.change_card_status(index, status)
-        self.add_weight_2suit(self.trump_char, 20)
+        self.add_weight_2suit(self.trump_char, 9)
         self.trump_range = range(self.suit_range[self.trump_char][0], self.suit_range[self.trump_char][1])
         pass
 
@@ -1310,6 +1312,11 @@ class Table:
             self.congratulations()
         return result
 
+    def calc_rank_reward(self ):
+        rank_rewards_lst = list(np.linspace(1.0, 0.0, num=self.players_qty))
+        rank_reward = rank_rewards_lst[len(self.episode_players_ranks)-1]
+        return rank_reward
+
     def is_this_end_of_game(self) -> bool:
         # Проверка окончания игры если какой_либо игрок закончил игру.
         result = False
@@ -1319,7 +1326,8 @@ class Table:
                 self.episode_players_ranks.append(player_id)
                 if self.pl[player_id].player_type == 'AI':
                     # rank_reward = 1 - (2 / (self.players_qty - 1)) * (len(self.episode_players_ranks) - 1)
-                    rank_reward = (1/self.players_qty) * (self.players_qty - (len(self.episode_players_ranks) - 1))
+                    # rank_reward = (1/self.players_qty) * (self.players_qty - (len(self.episode_players_ranks) - 1))
+                    rank_reward = self.calc_rank_reward()
                     self.pl[player_id].add_round_experience()
                     self.pl[player_id].add_episode_experience(rank_reward)
 
@@ -1337,8 +1345,9 @@ class Table:
                     self.episode_players_ranks.append(self.looser)
                     if self.pl[self.looser].player_type == 'AI':
                         # rank_reward = 1 - (2 / (self.players_qty - 1)) * (len(self.episode_players_ranks) - 1)
-                        rank_reward = (1 / self.players_qty) * (
-                                    self.players_qty - (len(self.episode_players_ranks) - 1))
+                        # rank_reward = (1 / self.players_qty) * (
+                        #             self.players_qty - (len(self.episode_players_ranks) - 1))
+                        rank_reward = self.calc_rank_reward()
                         self.pl[self.looser].add_round_experience()
                         self.pl[self.looser].add_episode_experience(rank_reward)
                     # print(self.looser)
@@ -1864,10 +1873,13 @@ class Table:
 
 
 class Environment(Table):
-    def __init__(self, players_qty, games_qty: int):
+    def __init__(self,
+                 players_qty,
+                 games_qty: int,
+                 nnmodel=None):
+
         super().__init__(players_qty)
-        self.nnmodel = tensorflow.keras.Model
-        self.epsilon = 0.0
+
         self.games_qty: int = games_qty
         self.game_idx: int = 0
         self.game_idxs: list = []
@@ -1881,6 +1893,21 @@ class Environment(Table):
         self.replay_buffer = ExperienceReplay(None)
         self.verbose = False
         self.train_process = True
+        self.nnmodel = nnmodel
+        self.epsilon = 0.0
+        self.optimizer = tf.keras.optimizers.Adam(learning_rate=1e-4, clipnorm=1.0)
+        self.loss_funct = tf.keras.losses.Huber()
+        self.compiled_status = False
+        if self.nnmodel is not None:
+            self.init_nnmodel()
+        pass
+
+    def init_nnmodel(self):
+        if not self.compiled_status:
+            self.nnmodel.compile(optimizer=self.optimizer,
+                                 loss=self.loss_funct,
+                                 metrics=['mean_square_error'])
+            self.compiled_status = True
         pass
 
     def save_deck_order(self) -> None:
@@ -1968,7 +1995,9 @@ class Environment(Table):
         pass
 
     def continue_series(self, start_type='next'):
-        self.reset()
+        if self.verbose:
+            self.reset()
+            self.verbose = True
         self.load_deck_order()
         self.start_time = time.time()
         self.set_table(start_table=start_type)
@@ -1991,18 +2020,9 @@ class Environment(Table):
             None
         """
         if self.first_game:
-            self.start_time = time.time()
-            self.set_table(start_table='new')
-            self.first_game = False
-            self.save_deck_order()
+            self.prepare_new_game()
         else:
-            self.reset()
-            self.load_deck_order()
-            self.start_time = time.time()
-            self.set_table(start_table=start_type)
-            if start_type != 'same':
-                self.player_turn = self.previous_player(self.game_losers[len(self.game_losers) - 1])
-            self.current_player_id = int(self.player_turn)
+            self.continue_series(start_type)
         self.game_idx += 1
         msg = f'==========================================\n' \
               f'Игра № {self.game_idx:03d}\n' \
@@ -2039,7 +2059,7 @@ class Environment(Table):
                 for line in buffer[4]:
                     with np.printoptions(precision=3, suppress=True):
                         print(line)
-        print(f'#### rounds win loose   time')
+        print(f'####### rounds win loose   time')
         for ix in range(self.games_qty):
             msg = f'{self.game_idxs[ix]:07d} {self.game_rounds[ix]:6d} {self.game_winners[ix]:3d} ' \
                   f'{self.game_losers[ix]:5d} {self.game_times[ix]:.4f}'
@@ -2048,9 +2068,7 @@ class Environment(Table):
         print(self.replay_buffer.__len__())
         pass
 
-    def train_episode_AI(self, start_type, model=q_model(), epsilon=0.0):
-
-        self.nnmodel = model
+    def train_episode_AI(self, start_type, epsilon=0.0):
         self.epsilon = epsilon
         if self.first_game:
             self.prepare_new_game()
@@ -2064,10 +2082,21 @@ class Environment(Table):
         self.game_idx += 1
         self.__add_report_data()
         self.game_turns = self.pl[2].game_turn-1
+        ''' add data to buffer at training circle if reward is high '''
         # self.replay_buffer.extend(self.pl[2].episode_buffer)
-
         last_turn = self.pl[2].episode_buffer[-1]
         _, _, turn_reward, _, _ = last_turn
+        if self.verbose:
+            print(f'### player turns')
+            for ix, player_id in enumerate(self.episode_players_ranks):
+                print(f'{ix + 1:02d}. {player_id:6d} {self.pl[player_id].game_turn:5d} '
+                      f'{turn_reward if player_id == 2 else "Nan"}')
+
+        # print(f'####### rounds win loose   time')
+        # for ix in range(len(self.game_losers)):
+        #     msg = f'{self.game_idxs[ix]:07d} {self.game_rounds[ix]:6d} {self.game_winners[ix]:3d} ' \
+        #           f'{self.game_losers[ix]:5d} {self.game_times[ix]:.4f}'
+        #     print(msg)
         return turn_reward
 
     # def train_ai(self, verbose=True):
@@ -2134,8 +2163,11 @@ if __name__ == '__main__':
     #         break
     #     except (TypeError, ValueError):
     #         print("Неправильный ввод")
-    players_num = 4
-    fool_game = Environment(players_num, games_num)
+    players_num = 2
+    fool_game = Environment(players_num,
+                            games_num,
+                            q_model(in_shape=(37, 20+players_num,), num_actions=37))
     fool_game.verbose = True
-    fool_game.play_series(start_type='next')
-    # fool_game.train_ai()
+    # fool_game.play_series(start_type='next')
+    reward = fool_game.train_episode_AI(start_type='next', epsilon=.99)
+    # fool_game.train_episode_AI(start_type='next', epsilon=.5)
