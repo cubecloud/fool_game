@@ -27,7 +27,7 @@ from tensorflow.keras import layers
 # from tensorflow.keras.layers import BatchNormalization
 # from tensorflow.keras.optimizers import RMSprop, Adam, SGD, RMSprop
 
-__version__ = "0.01.52"
+__version__ = "0.01.53"
 
 Experience = collections.namedtuple('Experience', field_names=['state', 'action', 'reward', 'done', 'next_state'])
 
@@ -2260,8 +2260,8 @@ class Environment(Table):
         self.print_msg(f'Кол-во игроков: {self.players_number}')
         for player_id in self.players_numbers_lst:
             if player_id == 1:
-                self.pl[1] = Player(1, 1)
-            #     # self.pl[1] = Player(1, 2)
+                # self.pl[1] = Player(1, 1)
+                self.pl[1] = Player(1, 2)
             elif player_id >= 2:
                 # Тип 3 - AI
                 self.pl[player_id] = AIPlayer(player_id, 3, self.nnmodel, self.epsilon)
