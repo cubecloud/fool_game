@@ -27,7 +27,7 @@ from tensorflow.keras import layers
 # from tensorflow.keras.layers import BatchNormalization
 # from tensorflow.keras.optimizers import RMSprop, Adam, SGD, RMSprop
 
-__version__ = "0.01.51"
+__version__ = "0.01.52"
 
 Experience = collections.namedtuple('Experience', field_names=['state', 'action', 'reward', 'done', 'next_state'])
 
@@ -788,12 +788,12 @@ class Player(Deck):
     # Возвращает индекс карты или в случае
     def analyze(self):
         if self.action == 'Attack':
-            if random.random() > 0.1:
+            if random.random() > 0.5:
                 r_index = self.attacking_low_weight()
             else:
                 r_index = self.attacking_random()
         elif self.action == 'Defend':
-            if random.random() > 0.1:
+            if random.random() > 0.5:
                 r_index = self.defending_low_weight()
             else:
                 r_index = self.defending_random()
@@ -801,7 +801,7 @@ class Player(Deck):
             """
             self.action == 'Passive':
             """
-            if random.random() > 0.1:
+            if random.random() > 0.5:
                 r_index = self.passive_attacking_low_weight()
             else:
                 r_index = self.passive_attacking_random()
@@ -811,7 +811,7 @@ class Player(Deck):
         self.trump_index = index
         self.trump_char = self.what_suit(index)
         status = self.get_current_status(index)
-        # trump in current game status
+        # trump in current game status self.player_deck[index][2:6]
         status[1] = 4
         self.change_card_status(index, status)
         self.add_weight_2suit(self.trump_char, 9)
@@ -2259,12 +2259,12 @@ class Environment(Table):
         # Иницианилизируем работу класса игроков и делаем их словарем
         self.print_msg(f'Кол-во игроков: {self.players_number}')
         for player_id in self.players_numbers_lst:
-            # if player_id == 1:
-            #     # self.pl[1] = Player(1, 1)
+            if player_id == 1:
+                self.pl[1] = Player(1, 1)
             #     # self.pl[1] = Player(1, 2)
-            # elif player_id >= 2:
+            elif player_id >= 2:
                 # Тип 3 - AI
-            self.pl[player_id] = AIPlayer(player_id, 3, self.nnmodel, self.epsilon)
+                self.pl[player_id] = AIPlayer(player_id, 3, self.nnmodel, self.epsilon)
             # else:
             #     # Тип 2 - Computer
             #     self.pl[player_id] = Player(player_id, 2)
