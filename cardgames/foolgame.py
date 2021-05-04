@@ -27,7 +27,7 @@ from tensorflow.keras import layers
 # from tensorflow.keras.layers import BatchNormalization
 # from tensorflow.keras.optimizers import RMSprop, Adam, SGD, RMSprop
 
-__version__ = "0.01.16"
+__version__ = "0.01.18"
 
 Experience = collections.namedtuple('Experience', field_names=['state', 'action', 'reward', 'done', 'next_state'])
 
@@ -50,8 +50,8 @@ def q_model_conv(in_shape=(37, 24,), num_actions=37):
 def q_model_dense(in_shape=(37, 24,), num_actions=37):
     initializer = tf.keras.initializers.RandomUniform(minval=0., maxval=0.05)
     inputs = layers.Input(shape=in_shape)
-    # Convolutions on the player deck state
-    layer1 = layers.Dense(128, activation="relu", kernel_initializer=initializer)(inputs)
+    layer0 = layers.Flatten()(inputs)
+    layer1 = layers.Dense(128, activation="relu", kernel_initializer=initializer)(layer0)
     layer2 = layers.Dense(256, activation="relu", kernel_initializer=initializer)(layer1)
     action = layers.Dense(num_actions, activation="linear", kernel_initializer=initializer)(layer2)
     return tensorflow.keras.Model(inputs=inputs, outputs=action)
