@@ -27,7 +27,7 @@ from tensorflow.keras import layers
 # from tensorflow.keras.layers import BatchNormalization
 # from tensorflow.keras.optimizers import RMSprop, Adam, SGD, RMSprop
 
-__version__ = "0.01.18"
+__version__ = "0.01.19"
 
 Experience = collections.namedtuple('Experience', field_names=['state', 'action', 'reward', 'done', 'next_state'])
 
@@ -2148,7 +2148,6 @@ class Environment(Table):
                  nnmodel=None):
 
         super().__init__(players_qty)
-
         self.games_qty: int = games_qty
         self.game_idx: int = 0
         self.game_idxs: list = []
@@ -2160,7 +2159,7 @@ class Environment(Table):
         self.first_game = True
         self.saved_playing_deck_order = []
         # self.replay_buffer = ExperienceReplay(None)
-        self.replay_buffer = ExperienceReplay(10000)
+        self.replay_buffer = ExperienceReplay(13000)
         self.verbose = False
         self.train_process = True
         self.nnmodel = nnmodel
@@ -2176,8 +2175,7 @@ class Environment(Table):
     def init_nnmodel(self):
         if not self.compiled_status:
             self.nnmodel.compile(optimizer=self.optimizer,
-                                 loss=self.loss_funct,
-                                 metrics=['mean_square_error'])
+                                 loss=self.loss_funct)
             self.compiled_status = True
         pass
 
