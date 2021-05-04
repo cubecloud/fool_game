@@ -27,7 +27,7 @@ from tensorflow.keras import layers
 # from tensorflow.keras.layers import BatchNormalization
 # from tensorflow.keras.optimizers import RMSprop, Adam, SGD, RMSprop
 
-__version__ = "0.01.15"
+__version__ = "0.01.16"
 
 Experience = collections.namedtuple('Experience', field_names=['state', 'action', 'reward', 'done', 'next_state'])
 
@@ -47,13 +47,13 @@ def q_model_conv(in_shape=(37, 24,), num_actions=37):
     return tensorflow.keras.Model(inputs=inputs, outputs=action)
 
 
-def q_model_dense(input_shape=(37, 24,), output_shape=37):
+def q_model_dense(in_shape=(37, 24,), num_actions=37):
     initializer = tf.keras.initializers.RandomUniform(minval=0., maxval=0.05)
-    inputs = layers.Input(shape=input_shape)
+    inputs = layers.Input(shape=in_shape)
     # Convolutions on the player deck state
     layer1 = layers.Dense(128, activation="relu", kernel_initializer=initializer)(inputs)
     layer2 = layers.Dense(256, activation="relu", kernel_initializer=initializer)(layer1)
-    action = layers.Dense(output_shape, activation="linear", kernel_initializer=initializer)(layer2)
+    action = layers.Dense(num_actions, activation="linear", kernel_initializer=initializer)(layer2)
     return tensorflow.keras.Model(inputs=inputs, outputs=action)
 
 
@@ -2160,7 +2160,7 @@ class Environment(Table):
         self.first_game = True
         self.saved_playing_deck_order = []
         # self.replay_buffer = ExperienceReplay(None)
-        self.replay_buffer = ExperienceReplay(12000)
+        self.replay_buffer = ExperienceReplay(5000)
         self.verbose = False
         self.train_process = True
         self.nnmodel = nnmodel
