@@ -2160,7 +2160,7 @@ class Environment(Table):
         self.first_game = True
         self.saved_playing_deck_order = []
         # self.replay_buffer = ExperienceReplay(None)
-        self.replay_buffer = ExperienceReplay(5000)
+        self.replay_buffer = ExperienceReplay(10000)
         self.verbose = False
         self.train_process = True
         self.nnmodel = nnmodel
