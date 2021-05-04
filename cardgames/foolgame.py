@@ -27,7 +27,7 @@ from tensorflow.keras import layers
 # from tensorflow.keras.layers import BatchNormalization
 # from tensorflow.keras.optimizers import RMSprop, Adam, SGD, RMSprop
 
-__version__ = "0.01.53"
+__version__ = "0.01.54"
 
 Experience = collections.namedtuple('Experience', field_names=['state', 'action', 'reward', 'done', 'next_state'])
 
@@ -2384,7 +2384,7 @@ class Environment(Table):
         self.print_msg(msg)
         self.play_episode()
         self.__add_report_data()
-        self.game_turns = self.pl[2].game_turn-1
+        self.game_turns = self.pl[self.episode_players_ranks[0]].game_turn-1
         ''' add data to buffer at training circle if reward is high '''
         # self.replay_buffer.extend(self.pl[2].episode_buffer)
         # last_turn = self.pl[2].episode_buffer[-1]
