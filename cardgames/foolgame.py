@@ -27,12 +27,12 @@ from tensorflow.keras import layers
 # from tensorflow.keras.layers import BatchNormalization
 # from tensorflow.keras.optimizers import RMSprop, Adam, SGD, RMSprop
 
-__version__ = "0.01.54"
+__version__ = "0.01.55"
 
 Experience = collections.namedtuple('Experience', field_names=['state', 'action', 'reward', 'done', 'next_state'])
 
 
-def q_model_conv(in_shape=(37, 24,), num_actions=37):
+def q_model_conv(in_shape=(37, 25,), num_actions=37):
     initializer = tf.keras.initializers.RandomUniform(minval=0., maxval=0.05)
     inputs = layers.Input(shape=in_shape)
     # Convolutions on the player deck state
@@ -47,7 +47,7 @@ def q_model_conv(in_shape=(37, 24,), num_actions=37):
     return tensorflow.keras.Model(inputs=inputs, outputs=action)
 
 
-def q_model_dense(in_shape=(37, 24,), num_actions=37):
+def q_model_dense(in_shape=(37, 25,), num_actions=37):
     initializer = tf.keras.initializers.RandomUniform(minval=0., maxval=0.05)
     inputs = layers.Input(shape=in_shape)
     layer0 = layers.Flatten()(inputs)
@@ -347,10 +347,12 @@ class Player(Deck):
             card_state.extend(self.convert_2ohe(card_value[1], 9))
             '''
             ohe card as property of player (self.players_number)
+            zero is property of deck
             # Normalize card as property of player (self.players_number)
             '''
             card_property_of = self.convert_card_property(card_value[2])
-            card_state.extend(self.convert_2ohe(card_property_of, self.players_number))
+            card_property_of_ohe = self.convert_2ohe(card_property_of, self.players_number+1, min_value=0)
+            card_state.extend(card_property_of_ohe)
             # card_state[2] = card_value[2] / self.players_number
             '''
             ohe card status (possible statuses = 5 (0 included))
@@ -2308,7 +2310,6 @@ class Environment(Table):
             self.player_turn = self.previous_player(self.game_losers[len(self.game_losers) - 1])
         self.current_player_id = int(self.player_turn)
         pass
-
 
     def play_game(self, start_type='next') -> None:
         """
