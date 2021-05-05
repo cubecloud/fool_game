@@ -27,13 +27,14 @@ from tensorflow.keras import layers
 # from tensorflow.keras.layers import BatchNormalization
 # from tensorflow.keras.optimizers import RMSprop, Adam, SGD, RMSprop
 
-__version__ = "0.01.55"
+__version__ = "0.01.56"
 
 Experience = collections.namedtuple('Experience', field_names=['state', 'action', 'reward', 'done', 'next_state'])
 
 
 def q_model_conv(in_shape=(37, 25,), num_actions=37):
-    initializer = tf.keras.initializers.RandomUniform(minval=0., maxval=0.05)
+    # initializer = tf.keras.initializers.RandomUniform(minval=0., maxval=0.05)
+    initializer = tf.keras.initializers.GlorotUniform()
     inputs = layers.Input(shape=in_shape)
     # Convolutions on the player deck state
     layer1 = layers.Conv1D(32, 8, strides=4, activation="relu", kernel_initializer=initializer)(inputs)
@@ -48,7 +49,8 @@ def q_model_conv(in_shape=(37, 25,), num_actions=37):
 
 
 def q_model_dense(in_shape=(37, 25,), num_actions=37):
-    initializer = tf.keras.initializers.RandomUniform(minval=0., maxval=0.05)
+    # initializer = tf.keras.initializers.RandomUniform(minval=0., maxval=0.05)
+    initializer = tf.keras.initializers.GlorotUniform()
     inputs = layers.Input(shape=in_shape)
     layer0 = layers.Flatten()(inputs)
     layer1 = layers.Dense(128, activation="relu", kernel_initializer=initializer)(layer0)
@@ -278,8 +280,8 @@ class Player(Deck):
         self.trump_index = None
         self.trump_char: str = ''
         self.trump_range = tuple
-        self.turn_state = np.zeros(shape=(36, 20+self.players_number), dtype=np.int8)
-        self.zeros_state = np.zeros(shape=(36, 20+self.players_number), dtype=np.int8)
+        self.turn_state = np.zeros(shape=(37, 21+self.players_number), dtype=np.float32)
+        self.zeros_state = np.zeros(shape=(37, 21+self.players_number), dtype=np.float32)
         self.turn_action_idx: int = 0
         self.turn_experience = tuple()
         self.round_experience: list = []
@@ -2193,7 +2195,7 @@ class Environment(Table):
         self.first_game = True
         self.saved_playing_deck_order = []
         # self.replay_buffer = ExperienceReplay(None)
-        self.replay_buffer = ExperienceReplay(13000)
+        self.replay_buffer = ExperienceReplay(20000)
         self.verbose = False
         self.train_process = True
         self.nnmodel = nnmodel
@@ -2423,7 +2425,7 @@ if __name__ == '__main__':
     #     except (TypeError, ValueError):
     #         print("Неправильный ввод")
     players_num = 4
-    model = q_model_conv(in_shape=(37, 20 + players_num,), num_actions=37)
+    model = q_model_conv(in_shape=(37, 21 + players_num,), num_actions=37)
     # model = DQNDense(input_shape=(37, 20 + players_num,), output_shape=37)
 
     fool_game = Environment(players_num,
