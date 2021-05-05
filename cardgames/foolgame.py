@@ -13,7 +13,7 @@
 #  limitations under the License.
 
 import random
-
+import sys
 import numpy as np
 import pickle as pkl
 import collections
@@ -27,7 +27,7 @@ from tensorflow.keras import layers
 # from tensorflow.keras.layers import BatchNormalization
 # from tensorflow.keras.optimizers import RMSprop, Adam, SGD, RMSprop
 
-__version__ = "0.01.56"
+__version__ = "0.01.58"
 
 Experience = collections.namedtuple('Experience', field_names=['state', 'action', 'reward', 'done', 'next_state'])
 
@@ -445,6 +445,8 @@ class Player(Deck):
                 #     max_round = np.max(turn_state[:, 5])
                 # temp_reward = copy.deepcopy(episode_reward)
                 next_state = copy.deepcopy(turn_state)
+                print(f'Player number: {self.player_number}, last state action_idx: {turn_action_idx}\n')
+                # sys.exit()
                 # '''
                 # Normalize q-ty of rounds in next_state
                 # '''
@@ -453,6 +455,7 @@ class Player(Deck):
             elif turn_idx == len(self.episode_experience) - 2:
                 turn_done = True
                 turn_reward = episode_reward
+                print(f'Player number: {self.player_number}, previous last state action_idx: {turn_action_idx}\n')
             # '''
             # Normalize q-ty of rounds in state
             # '''
@@ -1348,7 +1351,6 @@ class Table:
 
         Returns:
             result (bool):  True if game is over and False if it's not
-
         """
         result = False
         if self.is_this_end_of_game():
@@ -1552,8 +1554,6 @@ class Table:
             if not self.end_of_deck:
                 for i in range(self.pl[player_id].check_hand_before_round()):
                     self.add_card_2player_hand(player_id)
-            # else:
-            #     if self.if_player_hand_and_deck_empty(player_id):
 
             '''
             Debug of the card deck array
@@ -1566,6 +1566,7 @@ class Table:
                 #     print(key, value)
             self.pl[player_id].change_game_round(self.game_round)
             self.pl[player_id].change_player_turn(self.player_turn)
+
         pass
 
     def if_human_pause(self, player_number):
