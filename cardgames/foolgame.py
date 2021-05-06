@@ -26,7 +26,7 @@ from tensorflow.keras import layers
 # from tensorflow.keras.layers import BatchNormalization
 # from tensorflow.keras.optimizers import RMSprop, Adam, SGD, RMSprop
 
-__version__ = "0.01.82"
+__version__ = "0.01.83"
 
 Experience = collections.namedtuple('Experience', field_names=['state', 'action', 'reward', 'done', 'next_state'])
 
@@ -42,7 +42,7 @@ def q_model_conv(in_shape=(37, 25,), num_actions=37):
 
     layer4 = layers.Flatten()(layer3)
 
-    layer5 = layers.Dense(512, activation="relu")(layer4)
+    layer5 = layers.Dense(512, activation="relu", kernel_initializer=initializer)(layer4)
     action = layers.Dense(num_actions, activation="linear", kernel_initializer=initializer)(layer5)
     return tensorflow.keras.Model(inputs=inputs, outputs=action)
 
@@ -145,7 +145,7 @@ class Deck:
         [1] - ранг [1..9] (включительно)
         Статус:
         [2] принадлежность игроку [1..6] (включительно)
-            - 0 - лежит в колоде
+            - 0 - лежит в колоде (status - unknown)
             - 1 - карта находится у игрока с номером 1
             - 2 - карта находится у игрока с номером 2
             - 3 - карта находится у игрока с номером 3
@@ -153,7 +153,7 @@ class Deck:
             - 5 - карта находится у игрока с номером 5
             - 6 - карта находится у игрока с номером 6
         [3] Статус карты
-            - 0 - лежит в колоде
+            - 0 - лежит в колоде (status - unknown)
             - 1 - атакующая лежит на столе
             - 2 - защитная лежит на столе
             - 3 - в руке игрока (если мы видели карту) то запоминаем
@@ -613,10 +613,10 @@ class Player(Deck):
     #  это ход игрока
     def turn(self, action):
         self.action = action
-        if self.player_type == 'Computer':
+        if self.player_type == 'Computer' or self.player_type == 'AI':
             result = self.analyze()
-        elif self.player_type == 'AI':
-            result = self.analyze()
+        # elif self.player_type == 'AI':
+        #     result = self.analyze()
         else:
             if (self.action == 'Attack') and (len(self.desktop_list) > 0):
                 if self.attack_player_pass_flag:
@@ -918,10 +918,10 @@ class AIPlayer(Player):
             q_values = self.nnmodel(state_tensor, training=False)
             # with np.printoptions(precision=3, suppress=True):
             #     print(q_values.numpy())
-            masks = tf.one_hot(action_list, self.num_actions)
+            valid_masks = tf.one_hot(action_list, self.num_actions)
             # with np.printoptions(precision=3, suppress=True):
             #     print(masks.numpy())
-            valid_q_values = tf.expand_dims(tf.reduce_sum(tf.multiply(q_values, masks), axis=0), 0)
+            valid_q_values = tf.expand_dims(tf.reduce_sum(tf.multiply(q_values, valid_masks), axis=0), 0)
             # with np.printoptions(precision=3, suppress=True):
             #     print(valid_q_values.numpy())
             action = np.argmax(valid_q_values)
@@ -1403,24 +1403,24 @@ class Table:
                 self.add_2graveyard(self.desktop_list)
                 self.rem_cards_from_desktop()
 
-                if self.pl[player_id].player_type == 'AI':
-                    rank_reward = self.calc_rank_reward()
-                    '''
-                    Why zero (0)?
-                    '''
-                    self.pl[player_id].add_turn_experience(0)
-                    self.pl[player_id].game_reward = float(rank_reward)
-                    self.pl[player_id].add_round_experience()
-                    self.pl[player_id].add_episode_experience(rank_reward)
+                # if self.pl[player_id].player_type == 'AI':
+                rank_reward = self.calc_rank_reward()
+                '''
+                Why zero (0)?
+                '''
+                self.pl[player_id].add_turn_experience(0)
+                self.pl[player_id].game_reward = float(rank_reward)
+                self.pl[player_id].add_round_experience()
+                self.pl[player_id].add_episode_experience(rank_reward)
 
                 if self.players_number == 2:
                     self.looser = self.next_player(player_id)
                     self.episode_players_ranks.append(self.looser)
-                    if self.pl[self.looser].player_type == 'AI':
-                        rank_reward = self.calc_rank_reward()
-                        self.pl[self.looser].game_reward = float(rank_reward)
-                        self.pl[self.looser].add_round_experience()
-                        self.pl[self.looser].add_episode_experience(rank_reward)
+                    # if self.pl[self.looser].player_type == 'AI':
+                    rank_reward = self.calc_rank_reward()
+                    self.pl[self.looser].game_reward = float(rank_reward)
+                    self.pl[self.looser].add_round_experience()
+                    self.pl[self.looser].add_episode_experience(rank_reward)
                     result = True
 
                 self.one_more_is_out(player_id)
@@ -1549,8 +1549,8 @@ class Table:
         for player_id in self.players_numbers_lst:
 
             ''' Add round experience if player AI '''
-            if self.pl[player_id].player_type == 'AI':
-                self.pl[player_id].add_round_experience()
+            # if self.pl[player_id].player_type == 'AI':
+            self.pl[player_id].add_round_experience()
 
             ''' remove passive players flags '''
             self.set_passive_player_pass_flag(player_id, False)
@@ -1615,8 +1615,8 @@ class Table:
             self.pl[self.current_player_id].player_cards_onhand_list.remove(self.result)
 
             ''' Save data about turn experience, with action_idx (self.result) '''
-            if self.pl[self.current_player_id].player_type == 'AI':
-                self.pl[self.current_player_id].add_turn_experience(self.result)
+            # if self.pl[self.current_player_id].player_type == 'AI':
+            self.pl[self.current_player_id].add_turn_experience(self.result)
 
             # print(f'Ход игрока {player_number}
             # {self.pl[player_number].player_name} - {self.pl[player_number].show_card(result)}')
@@ -1648,8 +1648,8 @@ class Table:
                 self.rem_cards_from_desktop()
 
                 ''' Save data about turn experience, with action_idx (self.result) '''
-                if self.pl[self.current_player_id].player_type == 'AI':
-                    self.pl[self.current_player_id].add_turn_experience(self.result)
+                # if self.pl[self.current_player_id].player_type == 'AI':
+                self.pl[self.current_player_id].add_turn_experience(self.result)
 
                 # Переход хода
                 self.next_turn()
@@ -1672,8 +1672,8 @@ class Table:
                 self.rem_cards_from_desktop()
 
                 ''' Save data about turn experience, with action_idx (self.result) '''
-                if self.pl[self.current_player_id].player_type == 'AI':
-                    self.pl[self.current_player_id].add_turn_experience(self.result)
+                # if self.pl[self.current_player_id].player_type == 'AI':
+                self.pl[self.current_player_id].add_turn_experience(self.result)
 
                 # Переход хода
                 self.next_turn()
@@ -1710,8 +1710,8 @@ class Table:
             self.add_card_2desktop(self.result, self.action, self.current_player_id)
 
             ''' Save data about turn experience, with action_idx (self.result) '''
-            if self.pl[self.current_player_id].player_type == 'AI':
-                self.pl[self.current_player_id].add_turn_experience(self.result)
+            # if self.pl[self.current_player_id].player_type == 'AI':
+            self.pl[self.current_player_id].add_turn_experience(self.result)
 
             # print(
             #     f'Игрок {player_number}
@@ -1775,8 +1775,8 @@ class Table:
             self.add_cardslist_2player_hand(self.current_player_id, self.desktop_list)
 
             ''' Save data about turn experience, with action_idx (self.result) '''
-            if self.pl[self.current_player_id].player_type == 'AI':
-                self.pl[self.current_player_id].add_turn_experience(self.result)
+            # if self.pl[self.current_player_id].player_type == 'AI':
+            self.pl[self.current_player_id].add_turn_experience(self.result)
 
             # проверяем на наличие карт
             # если игроков 2 и пас то, если 2 игрока просто следующий кон,
@@ -1829,8 +1829,8 @@ class Table:
             self.add_card_2desktop(self.result, self.action, self.current_player_id)
 
             ''' Save data about turn experience, with action_idx (self.result) '''
-            if self.pl[self.current_player_id].player_type == 'AI':
-                self.pl[self.current_player_id].add_turn_experience(self.result)
+            # if self.pl[self.current_player_id].player_type == 'AI':
+            self.pl[self.current_player_id].add_turn_experience(self.result)
 
             # print(f'Подброс от игрока {player_number} - {self.pl[player_number].show_card(result)}')
             self.print_msg(
@@ -1847,8 +1847,8 @@ class Table:
             return
         elif self.result == 0:
             ''' Save data about turn experience, with action_idx (self.result) '''
-            if self.pl[self.current_player_id].player_type == 'AI':
-                self.pl[self.current_player_id].add_turn_experience(self.result)
+            # if self.pl[self.current_player_id].player_type == 'AI':
+            self.pl[self.current_player_id].add_turn_experience(self.result)
 
             # мы пасуем
             self.print_msg(
@@ -1952,7 +1952,7 @@ class Environment(Table):
         self.first_game = True
         self.saved_playing_deck_order = []
         # self.replay_buffer = ExperienceReplay(None)
-        self.replay_buffer = ExperienceReplay(20000)
+        self.replay_buffer = ExperienceReplay(30000)
         self.verbose = False
         self.train_process = True
         self.nnmodel = nnmodel
@@ -2131,8 +2131,13 @@ class Environment(Table):
         print(self.replay_buffer.__len__())
         pass
 
-    def train_episode_AI(self, start_type, epsilon=0.0):
+    def train_episode_AI(self,
+                         start_type,
+                         nnmodel,
+                         epsilon=0.0):
+
         self.epsilon = epsilon
+        self.nnmodel = nnmodel
         if self.first_game:
             self.prepare_new_game()
         else:
@@ -2204,7 +2209,7 @@ if __name__ == '__main__':
         fool_game._reset()
         # print(ai_repeat)
         fool_game.verbose = True
-        reward, episode_buffer = fool_game.train_episode_AI(start_type=ai_repeat, epsilon=.9)
+        reward, episode_buffer = fool_game.train_episode_AI(start_type=ai_repeat, nnmodel=model, epsilon=.99)
         # if reward != 0:
         #     if reward != 1.0:
         #       ai_repeat = 'same'
