@@ -26,7 +26,7 @@ from tensorflow.keras import layers
 # from tensorflow.keras.layers import BatchNormalization
 # from tensorflow.keras.optimizers import RMSprop, Adam, SGD, RMSprop
 
-__version__ = "0.01.83"
+__version__ = "0.01.84"
 
 Experience = collections.namedtuple('Experience', field_names=['state', 'action', 'reward', 'done', 'next_state'])
 
@@ -1957,8 +1957,9 @@ class Environment(Table):
         self.train_process = True
         self.nnmodel = nnmodel
         self.epsilon = 0.0
-        self.optimizer = tf.keras.optimizers.Adam(learning_rate=1e-4, clipnorm=1.0)
-        self.loss_funct = tf.keras.losses.Huber()
+        self.optimizer = tf.keras.optimizers.Adam(learning_rate=0.00025)
+        # self.loss_funct = tf.keras.losses.Huber()
+        self.loss_funct = tf.keras.losses.MSE
         self.compiled_status = False
         if self.nnmodel is not None:
             self.init_nnmodel()
