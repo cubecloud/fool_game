@@ -27,7 +27,7 @@ from tensorflow.keras import layers
 # from tensorflow.keras.layers import BatchNormalization
 # from tensorflow.keras.optimizers import RMSprop, Adam, SGD, RMSprop
 
-__version__ = "0.01.58"
+__version__ = "0.01.80"
 
 Experience = collections.namedtuple('Experience', field_names=['state', 'action', 'reward', 'done', 'next_state'])
 
@@ -193,7 +193,7 @@ class Deck:
         self.suit_chars = {1: 'П', 2: 'К', 3: 'Б', 4: 'Ч'}
         self.suits_names = {1: "Пики", 2: "Крести", 3: "Бубны", 4: "Черви"}
         self.suits_icons = {'П': '\u2660', 'К': '\u2663', 'Б': '\u2666', 'Ч': '\u2665'}
-        self.debug_verbose = 1
+        self.debug_verbose = 2
 
     pass
 
@@ -445,7 +445,7 @@ class Player(Deck):
                 #     max_round = np.max(turn_state[:, 5])
                 # temp_reward = copy.deepcopy(episode_reward)
                 next_state = copy.deepcopy(turn_state)
-                print(f'Player number: {self.player_number}, last state action_idx: {turn_action_idx}\n')
+                print(f'Player number: {self.player_number}, turn_idx {turn_idx} last state action_idx: {turn_action_idx}\n')
                 # sys.exit()
                 # '''
                 # Normalize q-ty of rounds in next_state
@@ -455,7 +455,9 @@ class Player(Deck):
             elif turn_idx == len(self.episode_experience) - 2:
                 turn_done = True
                 turn_reward = episode_reward
-                print(f'Player number: {self.player_number}, previous last state action_idx: {turn_action_idx}\n')
+                print(f'Player number: {self.player_number}, turn_idx {turn_idx}, previous last state action_idx: {turn_action_idx}')
+            else:
+                print(f'Player number: {self.player_number}, turn_idx {turn_idx}, state action_idx: {turn_action_idx}')
             # '''
             # Normalize q-ty of rounds in state
             # '''
@@ -1029,7 +1031,7 @@ class Table:
         for i in range(1, self.players_number + 1):
             self.players_numbers_lst.append(i)
 
-        self.debug_verbose = 1
+        self.debug_verbose = 2
         self.episode_players_ranks: list = []
         self.start_time = time.time()
         self.time_elapsed = 0
@@ -1389,6 +1391,7 @@ class Table:
                     # rank_reward = 1 - (2 / (self.players_qty - 1)) * (len(self.episode_players_ranks) - 1)
                     # rank_reward = (1/self.players_qty) * (self.players_qty - (len(self.episode_players_ranks) - 1))
                     rank_reward = self.calc_rank_reward()
+                    self.pl[player_id].add_turn_experience(0)
                     self.pl[player_id].game_reward = float(rank_reward)
                     self.pl[player_id].add_round_experience()
                     self.pl[player_id].add_episode_experience(rank_reward)
@@ -2433,6 +2436,7 @@ if __name__ == '__main__':
                             games_num,
                             model)
     fool_game.verbose = True
+    fool_game.debug_verbose = True
     # fool_game.play_series(start_type='next')
     count = 0
     total_count = 0
@@ -2440,7 +2444,7 @@ if __name__ == '__main__':
     # while fool_game.game_circle or not fool_game.turn_done:
     # fool_game.play_step(observer_player=2)
     ai_repeat = 'new'
-    while count < 5:
+    while count < 1:
         # if ai_repeat == 'new':
         # fool_game.prepare_new_game()
         fool_game.first_game = True
