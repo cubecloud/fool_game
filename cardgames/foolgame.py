@@ -26,7 +26,7 @@ from tensorflow.keras import layers
 # from tensorflow.keras.layers import BatchNormalization
 # from tensorflow.keras.optimizers import RMSprop, Adam, SGD, RMSprop
 
-__version__ = "0.01.84"
+__version__ = "0.01.85"
 
 Experience = collections.namedtuple('Experience', field_names=['state', 'action', 'reward', 'done', 'next_state'])
 
@@ -363,10 +363,11 @@ class Player(Deck):
             card_state.extend(card_property_of_ohe)
             # card_state[2] = card_value[2] / self.players_number
             '''
-            ohe card status (possible statuses = 5 (0 included))
+            ohe card status (possible statuses = 4 (0 NOT included))
+            # ohe card status (possible statuses = 5 (0 included))
             # Normalize card status (possible statuses = 4 (0 not included))
             '''
-            card_state.extend(self.convert_2ohe(card_value[3], 5, min_value=0))
+            card_state.extend(self.convert_2ohe(card_value[3], 4))
             # card_state[3] = card_value[3] / 4
             '''                    
             Normalize card graveyard status (zero or 1)
@@ -491,9 +492,23 @@ class Player(Deck):
         pass
 
     def add_graveyard_status(self, index):
+        """
+        Change card status to graveyard
+        # card status self.player_deck[index][2:6]
+
+        """
+        ''' get current status '''
         status = self.get_current_status(index)
-        # graveyard status
+
+        ''' remove card from any player - status[2] '''
+        status[0] = 0
+
+        ''' remove card from any action - status[3] '''
+        status[1] = 0
+
+        ''' add graveyard status '''
         status[2] = 1
+
         # round number for graveyard
         status[3] = self.game_round
         self.change_card_status(index, status)
@@ -830,7 +845,7 @@ class Player(Deck):
         self.trump_index = index
         self.trump_char = self.what_suit(index)
         status = self.get_current_status(index)
-        # trump in current game status self.player_deck[index][2:6]
+        ''' trump in current game status self.player_deck[index][2:6] '''
         status[1] = 4
         self.change_card_status(index, status)
         self.add_weight_2suit(self.trump_char, 9)
