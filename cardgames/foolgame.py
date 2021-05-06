@@ -26,12 +26,12 @@ from tensorflow.keras import layers
 # from tensorflow.keras.layers import BatchNormalization
 # from tensorflow.keras.optimizers import RMSprop, Adam, SGD, RMSprop
 
-__version__ = "0.01.85"
+__version__ = "0.01.86"
 
 Experience = collections.namedtuple('Experience', field_names=['state', 'action', 'reward', 'done', 'next_state'])
 
 
-def q_model_conv(in_shape=(37, 25,), num_actions=37):
+def q_model_conv(in_shape=(37, 24,), num_actions=37):
     # initializer = tf.keras.initializers.RandomUniform(minval=0., maxval=0.05)
     initializer = tf.keras.initializers.GlorotUniform()
     inputs = layers.Input(shape=in_shape)
@@ -47,7 +47,7 @@ def q_model_conv(in_shape=(37, 25,), num_actions=37):
     return tensorflow.keras.Model(inputs=inputs, outputs=action)
 
 
-def q_model_dense(in_shape=(37, 25,), num_actions=37):
+def q_model_dense(in_shape=(37, 24,), num_actions=37):
     # initializer = tf.keras.initializers.RandomUniform(minval=0., maxval=0.05)
     initializer = tf.keras.initializers.GlorotUniform()
     inputs = layers.Input(shape=in_shape)
@@ -284,8 +284,8 @@ class Player(Deck):
         self.trump_index = None
         self.trump_char: str = ''
         self.trump_range = tuple
-        self.turn_state = np.zeros(shape=(37, 21+self.players_number), dtype=np.float32)
-        self.zeros_state = np.zeros(shape=(37, 21+self.players_number), dtype=np.float32)
+        self.turn_state = np.zeros(shape=(37, 20+self.players_number), dtype=np.float32)
+        self.zeros_state = np.zeros(shape=(37, 20+self.players_number), dtype=np.float32)
         self.turn_action_idx: int = 0
         self.turn_experience = tuple()
         self.round_experience: list = []
@@ -343,7 +343,7 @@ class Player(Deck):
         '''
 
         state.append(list(card_state))
-        state[0] = list(np.zeros(shape=(21+self.players_number), dtype=np.float32))
+        state[0] = list(np.zeros(shape=(20+self.players_number), dtype=np.float32))
         for card_value in self.player_deck.values():
             '''
             ohe suits data - 4 suits
