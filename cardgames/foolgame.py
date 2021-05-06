@@ -13,7 +13,6 @@
 #  limitations under the License.
 
 import random
-import sys
 import numpy as np
 import pickle as pkl
 import collections
@@ -27,7 +26,7 @@ from tensorflow.keras import layers
 # from tensorflow.keras.layers import BatchNormalization
 # from tensorflow.keras.optimizers import RMSprop, Adam, SGD, RMSprop
 
-__version__ = "0.01.80"
+__version__ = "0.01.81"
 
 Experience = collections.namedtuple('Experience', field_names=['state', 'action', 'reward', 'done', 'next_state'])
 
@@ -193,7 +192,7 @@ class Deck:
         self.suit_chars = {1: 'П', 2: 'К', 3: 'Б', 4: 'Ч'}
         self.suits_names = {1: "Пики", 2: "Крести", 3: "Бубны", 4: "Черви"}
         self.suits_icons = {'П': '\u2660', 'К': '\u2663', 'Б': '\u2666', 'Ч': '\u2665'}
-        self.debug_verbose = 2
+        self.debug_verbose = 1
 
     pass
 
@@ -257,11 +256,16 @@ class Deck:
 
 
 class Player(Deck):
-    def __init__(self, player_number, player_type_num):
+    def __init__(self,
+                 player_number,
+                 player_type_num,
+                 epsilon):
         super().__init__()
         self.player_number = player_number
         self.player_types = {1: 'Human', 2: 'Computer', 3: 'AI'}
         self.player_type = self.player_types[player_type_num]
+        ''' random order '''
+        self.epsilon = epsilon
         # если человек то запрашиваем имя
         if self.player_type == self.player_types[1]:
             # self.player_name = self.player_types[player_type]
@@ -312,7 +316,7 @@ class Player(Deck):
     @staticmethod
     def convert_2ohe(value, max_value, min_value=1):
         ohe = np.zeros((max_value, ), dtype=np.float32)
-        ohe[value-min_value] = 1
+        ohe[value - min_value] = 1
         return list(ohe)
 
     def __converting_list(self):
@@ -337,7 +341,9 @@ class Player(Deck):
         '''
         Add Zero action_idx to states (pass)
         '''
+
         state.append(list(card_state))
+        state[0] = list(np.zeros(shape=(21+self.players_number), dtype=np.float32))
         for card_value in self.player_deck.values():
             '''
             ohe suits data - 4 suits
@@ -387,10 +393,9 @@ class Player(Deck):
             # card_state.extend(self.convert_2ohe(card_value[6], 34, min_value=0))
             # card_state[6] = card_value[6] / 34
             card_state.append(card_value[6] / 18)
-
-            state.append(copy.deepcopy(card_state))
+            # state.append(copy.deepcopy(card_state))
+            state.append(card_state)
             card_state: list = []
-        state[0] = [0 for _ in range(len(state[-1]))]
         return np.array(state, dtype=np.float32)
 
     def add_turn_experience(self, action_idx) -> None:
@@ -403,8 +408,12 @@ class Player(Deck):
         Returns:
             None:
         """
+        '''
+        for temporary testing purpose
         if action_idx == -1:
             action_idx = 0
+        '''
+
         self.game_turn += 1
         self.turn_state = self.convert_deck_2state()
         self.turn_experience: tuple = (self.turn_state, action_idx, self.zero_reward, self.zero_done)
@@ -445,7 +454,7 @@ class Player(Deck):
                 #     max_round = np.max(turn_state[:, 5])
                 # temp_reward = copy.deepcopy(episode_reward)
                 next_state = copy.deepcopy(turn_state)
-                print(f'Player number: {self.player_number}, turn_idx {turn_idx} last state action_idx: {turn_action_idx}\n')
+                # print(f'Player number: {self.player_number}, turn_idx {turn_idx} last state action_idx: {turn_action_idx}\n')
                 # sys.exit()
                 # '''
                 # Normalize q-ty of rounds in next_state
@@ -455,9 +464,9 @@ class Player(Deck):
             elif turn_idx == len(self.episode_experience) - 2:
                 turn_done = True
                 turn_reward = episode_reward
-                print(f'Player number: {self.player_number}, turn_idx {turn_idx}, previous last state action_idx: {turn_action_idx}')
-            else:
-                print(f'Player number: {self.player_number}, turn_idx {turn_idx}, state action_idx: {turn_action_idx}')
+            #     print(f'Player number: {self.player_number}, turn_idx {turn_idx}, previous last state action_idx: {turn_action_idx}')
+            # else:
+            #     print(f'Player number: {self.player_number}, turn_idx {turn_idx}, state action_idx: {turn_action_idx}')
             # '''
             # Normalize q-ty of rounds in state
             # '''
@@ -797,12 +806,12 @@ class Player(Deck):
     # Возвращает индекс карты или в случае
     def analyze(self):
         if self.action == 'Attack':
-            if random.random() > 0.5:
+            if random.random() > self.epsilon:
                 r_index = self.attacking_low_weight()
             else:
                 r_index = self.attacking_random()
         elif self.action == 'Defend':
-            if random.random() > 0.5:
+            if random.random() > self.epsilon:
                 r_index = self.defending_low_weight()
             else:
                 r_index = self.defending_random()
@@ -810,7 +819,7 @@ class Player(Deck):
             """
             self.action == 'Passive':
             """
-            if random.random() > 0.5:
+            if random.random() > self.epsilon:
                 r_index = self.passive_attacking_low_weight()
             else:
                 r_index = self.passive_attacking_random()
@@ -885,9 +894,9 @@ class AIPlayer(Player):
         Returns:
             None
         """
-        super().__init__(player_number, player_type_num)
+        super().__init__(player_number, player_type_num, epsilon)
         self.nnmodel = nnmodel
-        self.epsilon = epsilon
+        # self.epsilon = epsilon
         self.num_actions = 37
         pass
 
@@ -1031,7 +1040,7 @@ class Table:
         for i in range(1, self.players_number + 1):
             self.players_numbers_lst.append(i)
 
-        self.debug_verbose = 2
+        self.debug_verbose = 1
         self.episode_players_ranks: list = []
         self.start_time = time.time()
         self.time_elapsed = 0
@@ -1369,14 +1378,13 @@ class Table:
         return result
 
     def calc_rank_reward(self):
+        """
+
+
+        Returns:
+        """
         rank_rewards_lst = list(np.linspace(1.0, 0.0, num=self.players_qty))
         rank_reward = rank_rewards_lst[len(self.episode_players_ranks)-1]
-        # try:
-        #     rank_reward = rank_rewards_lst[len(self.episode_players_ranks)-1]
-        # except IndexError:
-        #     print(f'rank_rewards_lst: {rank_rewards_lst}, len-1: {len(self.episode_players_ranks)-1}, '
-        #           f'players_ranks: {self.episode_players_ranks}')
-        #     sys.exit()
         return rank_reward
 
     def is_this_end_of_game(self) -> bool:
@@ -1385,46 +1393,38 @@ class Table:
         players_id_lst = list(self.players_numbers_lst)
         for player_id in players_id_lst:
             if self.if_player_hand_and_deck_empty(player_id):
+
                 if not (player_id in self.episode_players_ranks):
                     self.episode_players_ranks.append(player_id)
-                if self.pl[player_id].player_type == 'AI':
-                    # rank_reward = 1 - (2 / (self.players_qty - 1)) * (len(self.episode_players_ranks) - 1)
-                    # rank_reward = (1/self.players_qty) * (self.players_qty - (len(self.episode_players_ranks) - 1))
-                    rank_reward = self.calc_rank_reward()
-                    self.pl[player_id].add_turn_experience(0)
-                    self.pl[player_id].game_reward = float(rank_reward)
-                    self.pl[player_id].add_round_experience()
-                    self.pl[player_id].add_episode_experience(rank_reward)
 
                 self.print_msg(
                     f'Игрок № {player_id}, заканчивает игру. Остается {self.players_number - 1} игроков')
                 self.show_desktop()
                 self.add_2graveyard(self.desktop_list)
                 self.rem_cards_from_desktop()
+
+                if self.pl[player_id].player_type == 'AI':
+                    rank_reward = self.calc_rank_reward()
+                    '''
+                    Why zero (0)?
+                    '''
+                    self.pl[player_id].add_turn_experience(0)
+                    self.pl[player_id].game_reward = float(rank_reward)
+                    self.pl[player_id].add_round_experience()
+                    self.pl[player_id].add_episode_experience(rank_reward)
+
                 if self.players_number == 2:
                     self.looser = self.next_player(player_id)
                     self.episode_players_ranks.append(self.looser)
                     if self.pl[self.looser].player_type == 'AI':
-                        # rank_reward = 1 - (2 / (self.players_qty - 1)) * (len(self.episode_players_ranks) - 1)
-                        # rank_reward = (1 / self.players_qty) * (
-                        #             self.players_qty - (len(self.episode_players_ranks) - 1))
                         rank_reward = self.calc_rank_reward()
                         self.pl[self.looser].game_reward = float(rank_reward)
                         self.pl[self.looser].add_round_experience()
                         self.pl[self.looser].add_episode_experience(rank_reward)
-                        # if not (self.looser in self.episode_players_ranks):
-
-                        # print(self.looser)
-                        # '''
-                        # Add round experience
-                        # '''
-                        # self.pl[player_id].add_round_experience()
-                        # '''
-                        # remarked for testing purpose
-                        # '''
-                        # self.pl[self.looser].add_episode_experience(-1.0)
                     result = True
+
                 self.one_more_is_out(player_id)
+
         return result
 
     def congratulations(self):
@@ -1444,10 +1444,8 @@ class Table:
     def show_all_cards(self, player_number) -> None:
         """
         Show all cards on desktop (table)
-
         Args:
             player_number:  player number
-
         Returns:
             None
         """
@@ -1549,27 +1547,29 @@ class Table:
         self.game_round += 1
         self.set_attack_player_pass_flag(False)
         for player_id in self.players_numbers_lst:
-            '''
-            Add round experience 
-            '''
-            self.pl[player_id].add_round_experience()
+
+            ''' Add round experience if player AI '''
+            if self.pl[player_id].player_type == 'AI':
+                self.pl[player_id].add_round_experience()
+
+            ''' remove passive players flags '''
             self.set_passive_player_pass_flag(player_id, False)
+
+            ''' adding cards from deck '''
             if not self.end_of_deck:
-                for i in range(self.pl[player_id].check_hand_before_round()):
+                for _ in range(self.pl[player_id].check_hand_before_round()):
                     self.add_card_2player_hand(player_id)
 
-            '''
-            Debug of the card deck array
-            '''
+            ''' Debug of the card deck array '''
             if self.debug_verbose > 2:
                 print(f'Player number: {player_id}')
                 with np.printoptions(precision=3, suppress=True):
                     print(self.pl[player_id].convert_deck_2state())
                 # for key, value in self.pl[player_id].player_deck.items():
                 #     print(key, value)
+
             self.pl[player_id].change_game_round(self.game_round)
             self.pl[player_id].change_player_turn(self.player_turn)
-
         pass
 
     def if_human_pause(self, player_number):
@@ -1693,8 +1693,8 @@ class Table:
                                f'{self.pl[self.current_player_id].player_name} пасует, можно подбрасывать')
 
                 ''' Save data about turn experience, with action_idx (self.result) '''
-                if self.pl[self.current_player_id].player_type == 'AI':
-                    self.pl[self.current_player_id].add_turn_experience(self.result)
+                # if self.pl[self.current_player_id].player_type == 'AI':
+                #     self.pl[self.current_player_id].add_turn_experience(self.result)
 
                 self.current_player_id = self.next_player(self.next_player(self.current_player_id))
                 # и выставляем флаг, что мы пасуем
@@ -1809,8 +1809,8 @@ class Table:
             # пропускаем ход (к пассивному игроку)
 
             ''' Save data about turn experience, with action_idx (self.result) '''
-            if self.pl[self.current_player_id].player_type == 'AI':
-                self.pl[self.current_player_id].add_turn_experience(self.result)
+            # if self.pl[self.current_player_id].player_type == 'AI':
+            #     self.pl[self.current_player_id].add_turn_experience(self.result)
 
             self.current_player_id = self.next_player(self.current_player_id)
             # self.show_all_cards(player_number)
@@ -1868,8 +1868,8 @@ class Table:
 
         elif self.action == 'Passive' and self.result < 0:
             ''' Save data about turn experience, with action_idx (self.result) '''
-            if self.pl[self.current_player_id].player_type == 'AI':
-                self.pl[self.current_player_id].add_turn_experience(self.result)
+            # if self.pl[self.current_player_id].player_type == 'AI':
+            #     self.pl[self.current_player_id].add_turn_experience(self.result)
 
             self.print_msg(
                 f'Игрок {self.current_player_id} {self.pl[self.current_player_id].player_name} '
@@ -1878,8 +1878,6 @@ class Table:
             self.current_player_id = self.next_player(self.current_player_id)
             return
         pass
-
-
 
     def play_episode(self):
         """
@@ -1935,251 +1933,6 @@ class Table:
                 self.current_player_passive_action()
                 continue
         pass
-
-# class Agent(Table):
-#     def __init__(self, players_qty):
-#         super().__init__(players_qty)
-#         self.first_game = True
-#         self.saved_playing_deck_order = []
-#         self.replay_buffer = ExperienceReplay(12000)
-#         self.verbose = False
-#         self.train_process = True
-#         self.nnmodel = None
-#         self.epsilon = 0.0
-#         self.optimizer = tf.keras.optimizers.Adam(learning_rate=1e-4, clipnorm=1.0)
-#         self.loss_funct = tf.keras.losses.Huber()
-#         self.compiled_status = False
-#         self.game_idx: int = 0
-#         self.game_idxs: list = []
-#         self.game_winners: list = []
-#         self.game_losers: list = []
-#         self.game_times: list = []
-#         self.game_rounds: list = []
-#         self.game_turns: int = 0
-#         pass
-#
-#     def init_nnmodel(self):
-#         if not self.compiled_status:
-#             self.nnmodel.compile(optimizer=self.optimizer,
-#                                  loss=self.loss_funct,
-#                                  metrics=['mean_square_error'])
-#             self.compiled_status = True
-#         pass
-#
-#     def save_deck_order(self) -> None:
-#         """
-#         Save current deck shuffle order
-#
-#         Returns:
-#             None
-#         """
-#         self.saved_playing_deck_order = list(self.hidden_playing_deck_order)
-#         pass
-#
-#     def load_deck_order(self) -> None:
-#         """
-#         Load saved deck shuffle order
-#
-#         Returns:
-#             None
-#         """
-#         self.hidden_playing_deck_order = list(self.saved_playing_deck_order)
-#         pass
-#
-#     def shuffle(self):
-#         """
-#         New shuffle with saving starting shuffle of the deck
-#         Shuffle the deck of cards
-#         And save shuffle for using with AI
-#
-#         Returns:
-#             None
-#         """
-#         # Это лист индексов колоды карт который отражает фактически колоду
-#         self.hidden_playing_deck_order = list(self.playing_deck.keys())
-#         # А теперь перемешанную колоду
-#         random.shuffle(self.hidden_playing_deck_order)
-#         self.save_deck_order()
-#         pass
-#
-#     # Устанавливаем кол-во игроков
-#     def set_players(self):
-#         """
-#         New set players method for training AI
-#         Setup for types of players
-#
-#         Returns:
-#             None
-#         """
-#         # Иницианилизируем работу класса игроков и делаем их словарем
-#         self.print_msg(f'Кол-во игроков: {self.players_number}')
-#         for player_id in self.players_numbers_lst:
-#             if player_id == 1:
-#                 # self.pl[1] = Player(1, 1)
-#                 self.pl[1] = Player(1, 2)
-#             elif player_id == 2:
-#                 # Тип 3 - AI
-#                 self.pl[player_id] = AIPlayer(player_id, 3, self.nnmodel, self.epsilon)
-#             else:
-#                 # Тип 2 - Computer
-#                 self.pl[player_id] = Player(player_id, 2)
-#         pass
-#
-#     def _reset(self) -> None:
-#         """
-#         Reset table (reinit)
-#
-#         Returns:
-#             None
-#         """
-#         super().__init__(self.players_qty)
-#         self.total_reward = 0.0
-#         pass
-#
-#     def __add_report_data(self):
-#         self.game_idxs.append(self.game_idx)
-#         self.game_rounds.append(self.game_round)
-#         self.game_winners.append(self.winner)
-#         self.game_losers.append(self.looser)
-#         self.game_times.append(self.time_elapsed)
-#         pass
-#
-#     # def play_step(self, nnet, epsilon, action):
-#     #     done_reward = None
-#     #     if np.random.random() < epsilon:
-#     #         action = env.action_space.sample()
-#     #     else:
-#     #         state_a = np.array([self.state], copy=False)
-#     #         state_v = torch.tensor(state_a).to(device)
-#     #         q_vals_v = net(state_v)
-#     #         _, act_v = torch.max(q_vals_v, dim=1)
-#     #         action = int(act_v.item())
-#     #
-#     #     new_state, reward, is_done, _ = self.env.step(action)
-#     #     self.total_reward += reward
-#     #
-#     #     exp = Experience(self.state, action, reward, is_done, new_state)
-#     #     self.exp_buffer.append(exp)
-#     #     self.state = new_state
-#     #     if is_done:
-#     #         done_reward = self.total_reward
-#     #         self._reset()
-#     #     return done_reward
-#     #
-#     #     pass
-#
-#     def prepare_new_game(self):
-#         self.start_time = time.time()
-#         self.set_table(start_table='new')
-#         self.first_game = False
-#         self.save_deck_order()
-#         pass
-#
-#     def continue_series(self, start_type='next'):
-#         if self.verbose:
-#             self._reset()
-#             self.verbose = True
-#         else:
-#             self._reset()
-#         self.load_deck_order()
-#         self.start_time = time.time()
-#         self.set_table(start_table=start_type)
-#         if start_type == 'next':
-#             self.player_turn = self.previous_player(self.game_losers[len(self.game_losers) - 1])
-#         self.current_player_id = int(self.player_turn)
-#         pass
-#
-#     def play_game(self, start_type='next') -> None:
-#         """
-#         Play one game
-#
-#         Args:
-#             start_type (str):   valid choices for behavior,
-#                                 "new" - 1st run in any series,
-#                                 "same" - using same deck shuffle every time as in 1st run,
-#                                 "next" - using normal behavior for all games
-#         Returns:
-#             None
-#         """
-#         if self.first_game:
-#             self.prepare_new_game()
-#         else:
-#             self.continue_series(start_type)
-#         self.game_idx += 1
-#         msg = f'==========================================\n' \
-#               f'Игра № {self.game_idx:03d}\n' \
-#               f'==========================================\n'
-#         self.print_msg(msg)
-#         self.play_episode()
-#         self.__add_report_data()
-#         pass
-#
-#     def play_series(self, start_type='next'):
-#         for game_idx in range(self.games_qty):
-#             self.play_game(start_type)
-#             if self.verbose:
-#                 print(f'### player turns')
-#                 for ix, player_id in enumerate(self.episode_players_ranks):
-#                     print(f'{ix + 1:02d}. {player_id:6d} {self.pl[player_id].game_turn:5d}')
-#
-#             self.replay_buffer.extend(self.pl[2].episode_buffer)
-#             if self.debug_verbose > 2:
-#                 buffer = self.replay_buffer.show()
-#                 print('States:')
-#                 for line in buffer[0]:
-#                     with np.printoptions(precision=3, suppress=True):
-#                         print(line)
-#                 print('Actions:')
-#                 for line in buffer[1]:
-#                     with np.printoptions(precision=3, suppress=True):
-#                         print(line)
-#                 print('Rewards:')
-#                 print(buffer[2])
-#                 print('Dones:')
-#                 print(buffer[3])
-#                 print('Next states:')
-#                 for line in buffer[4]:
-#                     with np.printoptions(precision=3, suppress=True):
-#                         print(line)
-#         print(f'####### rounds win loose   time')
-#         for ix in range(self.games_qty):
-#             msg = f'{self.game_idxs[ix]:07d} {self.game_rounds[ix]:6d} {self.game_winners[ix]:3d} ' \
-#                   f'{self.game_losers[ix]:5d} {self.game_times[ix]:.4f}'
-#             print(msg)
-#         print(f'Total playing time: {sum(self.game_times):.4f}')
-#         print(self.replay_buffer.__len__())
-#         pass
-#
-#     def train_episode_AI(self, start_type, epsilon=0.0):
-#         self.epsilon = epsilon
-#         if self.first_game:
-#             self.prepare_new_game()
-#         else:
-#             self.continue_series(start_type)
-#         self.game_idx += 1
-#         msg = f'==========================================\n' \
-#               f'Игра № {self.game_idx:03d}\n' \
-#               f'==========================================\n'
-#         self.print_msg(msg)
-#         self.play_episode()
-#         self.__add_report_data()
-#         self.game_turns = self.pl[2].game_turn-1
-#         ''' add data to buffer at training circle if reward is high '''
-#         # self.replay_buffer.extend(self.pl[2].episode_buffer)
-#         # last_turn = self.pl[2].episode_buffer[-1]
-#         # _, _, turn_reward, _, _ = last_turn
-#         if self.verbose:
-#             print(f'### player turns')
-#             for ix, player_id in enumerate(self.episode_players_ranks):
-#                 print(f'{ix + 1:02d}. {player_id:6d} {self.pl[player_id].game_turn:5d} '
-#                       f'{self.pl[player_id].game_reward if player_id == 2 else "Nan"}')
-#
-#         # print(f'####### rounds win loose   time')
-#         # for ix in range(len(self.game_losers)):
-#         #     msg = f'{self.game_idxs[ix]:07d} {self.game_rounds[ix]:6d} {self.game_winners[ix]:3d} ' \
-#         #           f'{self.game_losers[ix]:5d} {self.game_times[ix]:.4f}'
-#         #     print(msg)
-#         return self.pl[2].game_reward, self.pl[2].episode_buffer
 
 
 class Environment(Table):
@@ -2268,8 +2021,8 @@ class Environment(Table):
         self.print_msg(f'Кол-во игроков: {self.players_number}')
         for player_id in self.players_numbers_lst:
             if player_id == 1:
-                # self.pl[1] = Player(1, 1)
-                self.pl[1] = Player(1, 2)
+                # self.pl[1] = Player(1, 1, 0)
+                self.pl[1] = Player(1, 2, self.epsilon)
             elif player_id >= 2:
                 # Тип 3 - AI
                 self.pl[player_id] = AIPlayer(player_id, 3, self.nnmodel, self.epsilon)
