@@ -26,7 +26,7 @@ from tensorflow.keras import layers
 # from tensorflow.keras.layers import BatchNormalization
 # from tensorflow.keras.optimizers import RMSprop, Adam, SGD, RMSprop
 
-__version__ = "0.01.81"
+__version__ = "0.01.82"
 
 Experience = collections.namedtuple('Experience', field_names=['state', 'action', 'reward', 'done', 'next_state'])
 
@@ -463,7 +463,8 @@ class Player(Deck):
                 continue
             elif turn_idx == len(self.episode_experience) - 2:
                 turn_done = True
-                turn_reward = episode_reward
+                turn_reward = float(episode_reward)
+                temp_reward = episode_reward
             #     print(f'Player number: {self.player_number}, turn_idx {turn_idx}, previous last state action_idx: {turn_action_idx}')
             # else:
             #     print(f'Player number: {self.player_number}, turn_idx {turn_idx}, state action_idx: {turn_action_idx}')
@@ -471,12 +472,12 @@ class Player(Deck):
             # Normalize q-ty of rounds in state
             # '''
             # turn_state[:, 5] = turn_state[:, 5] / max_round
-            # if turn_reward == 0:
-            #     temp_reward = temp_reward * reward_decay
-            #     turn_reward = temp_reward
-            # else:
-            #     temp_reward = temp_reward * reward_decay
-            #     turn_reward += temp_reward
+            if turn_reward == 0:
+                temp_reward = temp_reward * reward_decay
+                turn_reward = temp_reward
+            else:
+                temp_reward = temp_reward * reward_decay
+                turn_reward += temp_reward
             self.episode_buffer.insert(0, (turn_state, turn_action_idx, turn_reward, turn_done, next_state))
             next_state = copy.deepcopy(turn_state)
         pass
@@ -914,18 +915,17 @@ class AIPlayer(Player):
             state_a = self.convert_deck_2state()
             state_tensor = tf.convert_to_tensor(state_a)
             state_tensor = tf.expand_dims(state_tensor, 0)
-            action_probs = self.nnmodel(state_tensor, training=False)
-            # print(action_probs)
-            # Take best action
+            q_values = self.nnmodel(state_tensor, training=False)
+            # with np.printoptions(precision=3, suppress=True):
+            #     print(q_values.numpy())
             masks = tf.one_hot(action_list, self.num_actions)
-            # print(masks.numpy)
-            valid_actions = tf.expand_dims(tf.reduce_sum(tf.multiply(action_probs, masks), axis=0), 0)
-            # valid_actions = tf.expand_dims(valid_actions, 0)
-            # print(valid_actions.numpy())
-            # action = tf.argmax(action_probs[0]).numpy()
-            action = np.argmax(valid_actions)
-            # print(self.action, action_list)
-            # print(action)
+            # with np.printoptions(precision=3, suppress=True):
+            #     print(masks.numpy())
+            valid_q_values = tf.expand_dims(tf.reduce_sum(tf.multiply(q_values, masks), axis=0), 0)
+            # with np.printoptions(precision=3, suppress=True):
+            #     print(valid_q_values.numpy())
+            action = np.argmax(valid_q_values)
+            # print(self.action, action_list, action)
             if not (action in action_list):
                 action = action_list[0]
         return action
@@ -2204,7 +2204,7 @@ if __name__ == '__main__':
         fool_game._reset()
         # print(ai_repeat)
         fool_game.verbose = True
-        reward, episode_buffer = fool_game.train_episode_AI(start_type=ai_repeat, epsilon=.99)
+        reward, episode_buffer = fool_game.train_episode_AI(start_type=ai_repeat, epsilon=.9)
         # if reward != 0:
         #     if reward != 1.0:
         #       ai_repeat = 'same'
