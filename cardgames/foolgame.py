@@ -1375,7 +1375,7 @@ class Table:
     def show_first_turn_card(self):
         player, index = self.first_turn_choice()
         self.player_turn = player
-        self.print_msg(f'Ходит игрок №{player} {self.pl[player].player_name}, у него меньшая карта '
+        self.print_msg(f'Ходит игрок №{player} {self.pl[player].player_name}, у него меньшая карта ' \
                        f'{self.pl[player].show_card(index)}')
         status = self.pl[player].get_current_status(index)
         # player number
