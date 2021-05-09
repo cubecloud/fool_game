@@ -31,7 +31,7 @@ __version__ = "0.01.92"
 Experience = collections.namedtuple('Experience', field_names=['state', 'action', 'reward', 'done', 'next_state'])
 
 
-def q_model_conv(in_shape=(37, 24,), num_actions=37):
+def q_model_conv(in_shape=(37, 25,), num_actions=37):
     # initializer = tf.keras.initializers.RandomUniform(minval=0., maxval=0.05)
     initializer = tf.keras.initializers.GlorotUniform()
     inputs = layers.Input(shape=in_shape)
@@ -47,7 +47,7 @@ def q_model_conv(in_shape=(37, 24,), num_actions=37):
     return tensorflow.keras.Model(inputs=inputs, outputs=action)
 
 
-def q_model_dense(in_shape=(37, 24,), num_actions=37):
+def q_model_dense(in_shape=(37, 25,), num_actions=37):
     # initializer = tf.keras.initializers.RandomUniform(minval=0., maxval=0.05)
     initializer = tf.keras.initializers.GlorotUniform()
     inputs = layers.Input(shape=in_shape)
@@ -284,8 +284,8 @@ class Player(Deck):
         self.trump_index = None
         self.trump_char: str = ''
         self.trump_range = tuple
-        self.turn_state = np.zeros(shape=(37, 20 + self.players_number), dtype=np.float32)
-        self.zeros_state = np.zeros(shape=(37, 20 + self.players_number), dtype=np.float32)
+        self.turn_state = np.zeros(shape=(37, 21 + self.players_number), dtype=np.float32)
+        self.zeros_state = np.zeros(shape=(37, 21 + self.players_number), dtype=np.float32)
         self.turn_action_idx: int = 0
         self.turn_experience = tuple()
         self.round_experience: list = []
@@ -344,8 +344,10 @@ class Player(Deck):
         '''
 
         state.append(list(card_state))
-        state[0] = list(np.zeros(shape=(20 + self.players_number), dtype=np.float32))
-        for card_value in self.player_deck.values():
+        state[0] = list(np.zeros(shape=(21 + self.players_number), dtype=np.float32))
+        for ix, card_value in enumerate(self.player_deck.values()):
+            if self.debug_verbose > 1:
+                print(ix+1, card_value)
             '''
             ohe suits data - 4 suits
             '''
@@ -377,23 +379,15 @@ class Player(Deck):
             card_state.append(card_value[4])
             # card_state[4] = card_value[4]
             '''
-            # 6. remove round number completely
-            # 5. Normalized /10
-            # 4. Normalized                                      
-            # 3. Normalized /100
-            # 2. Will not be normalized cos we doesn't know the total rounds 
-            # 1. Normalize round number (will be normalized after playing full episode)            
+            Last action card status (True or False)     
             '''
-            # card_state.append(card_value[5]/10)
-            # card_state[5] = card_value[5]/10
-            # card_state[5] = card_value[5]
-            # card_state[5] = card_value[5]/100
+            card_state.append(card_value[5])
+
             '''                                     
             # Normalize card weight (max card_weight=34)
             Normalize card weight (max card_weight=18)
             '''
             # card_state.extend(self.convert_2ohe(card_value[6], 34, min_value=0))
-            # card_state[6] = card_value[6] / 34
             card_state.append(card_value[6] / 18)
             # state.append(copy.deepcopy(card_state))
             state.append(card_state)
@@ -2184,7 +2178,7 @@ class Environment(Table):
         super().__init__(self.players_qty)
         self.prepare_new_game()
         # TODO create another option for reset environment and return state may be choose the player
-        return self.pl[1].convert_deck_2state()
+        return self.pl[self.observer_player].convert_deck_2state()
 
     def __add_report_data(self):
         self.game_idxs.append(self.game_idx)
@@ -2826,7 +2820,7 @@ if __name__ == '__main__':
     #     except (TypeError, ValueError):
     #         print("Неправильный ввод")
     players_num = 4
-    model = q_model_conv(in_shape=(37, 20 + players_num,), num_actions=37)
+    model = q_model_conv(in_shape=(37, 21 + players_num,), num_actions=37)
     model.compile(optimizer=tf.keras.optimizers.Adam(), loss=tf.keras.losses.MSE)
 
     buffer = ExperienceReplay(20000)
@@ -2864,7 +2858,7 @@ if __name__ == '__main__':
     """
     players_num = 4
     model = q_model_conv(in_shape=(37, 21 + players_num,), num_actions=37)
-    # model = DQNDense(input_shape=(37, 20 + players_num,), output_shape=37)
+    # model = DQNDense(input_shape=(37, 21 + players_num,), output_shape=37)
 
     fool_game = Environment(players_num,
                             env_type="1ai-computer",
