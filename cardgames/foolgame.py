@@ -342,12 +342,11 @@ class Player(Deck):
         '''
         Add Zero action_idx to states (pass)
         '''
-
         state.append(list(card_state))
         state[0] = list(np.zeros(shape=(21 + self.players_number), dtype=np.float32))
         for ix, card_value in enumerate(self.player_deck.values()):
-            if self.debug_verbose > 1:
-                print(ix+1, card_value)
+            # if self.debug_verbose > 1:
+            #     print(ix+1, card_value)
             '''
             ohe suits data - 4 suits
             '''
@@ -2660,6 +2659,7 @@ class Environment(Table):
             if self.action == 'Attack':
                 if self.queue_to_get_dummy_action_idx():
                     turn_state = self.pl[self.current_player_id].convert_deck_2state()
+                    # print(turn_state.shape)
                     turn_reward = .0
                     if self.episode_players_ranks:
                         if self.current_player_id in self.episode_players_ranks:
@@ -2682,6 +2682,7 @@ class Environment(Table):
                     if check_parity == 0:
                         if self.queue_to_get_dummy_action_idx():
                             turn_state = self.pl[self.current_player_id].convert_deck_2state()
+                            # print(turn_state.shape)
                             turn_reward = .0
                             if self.episode_players_ranks:
                                 if self.current_player_id in self.episode_players_ranks:
@@ -2701,7 +2702,7 @@ class Environment(Table):
                                        f'{self.pl[self.current_player_id].player_name} пропускает ход к след игроку')
                         self.current_player_id = self.next_player(self.current_player_id)
                 else:
-                    # если мы ждем то пропускаем к следующему игроку (например когда пасует атакующий)
+                    ''' если мы ждем то пропускаем к следующему игроку (например когда пасует атакующий) '''
                     self.print_msg(f'Игрок {self.current_player_id} '
                                    f'{self.pl[self.current_player_id].player_name} пропускает ход к след игроку')
                     self.current_player_id = self.next_player(self.current_player_id)
@@ -2712,6 +2713,7 @@ class Environment(Table):
                         and self.pl[self.current_player_id].attack_player_pass_flag:
                     if self.queue_to_get_dummy_action_idx():
                         turn_state = self.pl[self.current_player_id].convert_deck_2state()
+                        # print(turn_state.shape)
                         turn_reward = .0
                         if self.episode_players_ranks:
                             if self.current_player_id in self.episode_players_ranks:
