@@ -26,7 +26,7 @@ from tensorflow.keras import layers
 # from tensorflow.keras.layers import BatchNormalization
 # from tensorflow.keras.optimizers import RMSprop, Adam, SGD, RMSprop
 
-__version__ = "0.01.92"
+__version__ = "0.01.94"
 
 Experience = collections.namedtuple('Experience', field_names=['state', 'action', 'reward', 'done', 'next_state'])
 
@@ -216,8 +216,9 @@ class Deck:
     def add_card_weight(self, index, add_weight):
         return self.change_card_weight(index, self.get_card_weight(index) + add_weight)
 
-    def what_suit(self, index):
-        return self.suit_chars[self.player_deck[index][0]]
+    def what_suit(self, index: int) -> str:
+        suit_char_index = self.player_deck[index][0]
+        return self.suit_chars[suit_char_index]
 
     def what_rank(self, index):
         return self.player_deck[index][1]
@@ -2030,7 +2031,6 @@ class Table:
                 continue
         pass
 
-
 class Environment(Table):
     dummy_player_action: int
 
@@ -2129,7 +2129,7 @@ class Environment(Table):
         """
 
         if self.env_type == "dummy":
-            players_types_setup = [(4, 0), (2, 1.0)]
+            players_types_setup = [(4, 0), (2, self.epsilon)]
         elif self.env_type == "1computer-ai":
             players_types_setup = [(2, self.epsilon), (3, self.epsilon)]
         elif self.env_type == "1ai-computer":
@@ -2752,7 +2752,7 @@ class Agent:
         self.env = env
         self.observer_player = env.observer_player
         self.exp_buffer = exp_buffer
-        self.verbose = False
+        self.verbose = True
         self.debug_verbose = 1
         self._reset()
         pass
@@ -2838,6 +2838,7 @@ if __name__ == '__main__':
     print(msg)
     test_agent = Agent(environment,
                        exp_buffer=buffer)
+
     msg = f'--------------------------------------------------------------\n' \
           f'                      1st step end                            \n' \
           f'--------------------------------------------------------------\n'
