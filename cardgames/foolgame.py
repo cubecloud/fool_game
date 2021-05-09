@@ -26,7 +26,7 @@ from tensorflow.keras import layers
 # from tensorflow.keras.layers import BatchNormalization
 # from tensorflow.keras.optimizers import RMSprop, Adam, SGD, RMSprop
 
-__version__ = "0.01.86"
+__version__ = "0.01.90"
 
 Experience = collections.namedtuple('Experience', field_names=['state', 'action', 'reward', 'done', 'next_state'])
 
@@ -262,7 +262,7 @@ class Player(Deck):
                  epsilon):
         super().__init__()
         self.player_number = player_number
-        self.player_types = {1: 'Human', 2: 'Computer', 3: 'AI'}
+        self.player_types = {1: 'Human', 2: 'Computer', 3: 'AI', 4: 'Dummy'}
         self.player_type = self.player_types[player_type_num]
         ''' random order '''
         self.epsilon = epsilon
@@ -284,8 +284,8 @@ class Player(Deck):
         self.trump_index = None
         self.trump_char: str = ''
         self.trump_range = tuple
-        self.turn_state = np.zeros(shape=(37, 20+self.players_number), dtype=np.float32)
-        self.zeros_state = np.zeros(shape=(37, 20+self.players_number), dtype=np.float32)
+        self.turn_state = np.zeros(shape=(37, 20 + self.players_number), dtype=np.float32)
+        self.zeros_state = np.zeros(shape=(37, 20 + self.players_number), dtype=np.float32)
         self.turn_action_idx: int = 0
         self.turn_experience = tuple()
         self.round_experience: list = []
@@ -315,12 +315,13 @@ class Player(Deck):
 
     @staticmethod
     def convert_2ohe(value, max_value, min_value=1):
-        ohe = np.zeros((max_value, ), dtype=np.float32)
+        ohe = np.zeros((max_value,), dtype=np.float32)
         ohe[value - min_value] = 1
         return list(ohe)
 
     def __converting_list(self):
-        self.converting_players_order = [player_num for player_num in range(self.player_number, self.players_number+1)]
+        self.converting_players_order = [player_num for player_num in
+                                         range(self.player_number, self.players_number + 1)]
         for player_num in range(1, self.player_number):
             self.converting_players_order.append(player_num)
         self.converting_players_order.insert(0, 0)
@@ -343,7 +344,7 @@ class Player(Deck):
         '''
 
         state.append(list(card_state))
-        state[0] = list(np.zeros(shape=(20+self.players_number), dtype=np.float32))
+        state[0] = list(np.zeros(shape=(20 + self.players_number), dtype=np.float32))
         for card_value in self.player_deck.values():
             '''
             ohe suits data - 4 suits
@@ -359,7 +360,7 @@ class Player(Deck):
             # Normalize card as property of player (self.players_number)
             '''
             card_property_of = self.convert_card_property(card_value[2])
-            card_property_of_ohe = self.convert_2ohe(card_property_of, self.players_number+1, min_value=0)
+            card_property_of_ohe = self.convert_2ohe(card_property_of, self.players_number + 1, min_value=0)
             card_state.extend(card_property_of_ohe)
             # card_state[2] = card_value[2] / self.players_number
             '''
@@ -441,7 +442,6 @@ class Player(Deck):
     def add_episode_experience(self, episode_reward):
         reward_decay = 0.99
         temp_reward = 0
-        # max_round: int = 0
         next_state = self.zeros_state
         for turn_idx in range(len(self.episode_experience) - 1, -1, -1):
             turn_state, turn_action_idx, turn_reward, turn_done = self.episode_experience[turn_idx]
@@ -450,35 +450,25 @@ class Player(Deck):
             # '''
             # turn_action_idx = self.convert_action_idx_2ohe(turn_action_idx)
             if turn_idx == len(self.episode_experience) - 1:
-                ''' Removed normalization for rounds '''
-                # if np.max(turn_state[:, 5]) > max_round:
-                #     max_round = np.max(turn_state[:, 5])
                 # temp_reward = copy.deepcopy(episode_reward)
                 next_state = copy.deepcopy(turn_state)
                 # print(f'Player number: {self.player_number}, turn_idx {turn_idx} last state action_idx: {turn_action_idx}\n')
-                # sys.exit()
-                # '''
-                # Normalize q-ty of rounds in next_state
-                # '''
-                # next_state[:, 5] = next_state[:, 5] / max_round
                 continue
             elif turn_idx == len(self.episode_experience) - 2:
                 turn_done = True
                 turn_reward = float(episode_reward)
-                temp_reward = episode_reward
+                # temp_reward = episode_reward
+
             #     print(f'Player number: {self.player_number}, turn_idx {turn_idx}, previous last state action_idx: {turn_action_idx}')
             # else:
             #     print(f'Player number: {self.player_number}, turn_idx {turn_idx}, state action_idx: {turn_action_idx}')
-            # '''
-            # Normalize q-ty of rounds in state
-            # '''
-            # turn_state[:, 5] = turn_state[:, 5] / max_round
-            if turn_reward == 0:
-                temp_reward = temp_reward * reward_decay
-                turn_reward = temp_reward
-            else:
-                temp_reward = temp_reward * reward_decay
-                turn_reward += temp_reward
+
+            # if turn_reward == 0:
+            #     temp_reward = temp_reward * reward_decay
+            #     turn_reward = temp_reward
+            # else:
+            #     temp_reward = temp_reward * reward_decay
+            #     turn_reward += temp_reward
             self.episode_buffer.insert(0, (turn_state, turn_action_idx, turn_reward, turn_done, next_state))
             next_state = copy.deepcopy(turn_state)
         pass
@@ -628,7 +618,9 @@ class Player(Deck):
     #  это ход игрока
     def turn(self, action):
         self.action = action
-        if self.player_type == 'Computer' or self.player_type == 'AI':
+        if self.player_type == 'Computer' \
+                or self.player_type == 'AI' \
+                or self.player_type == 'Dummy':
             result = self.analyze()
         # elif self.player_type == 'AI':
         #     result = self.analyze()
@@ -1015,7 +1007,13 @@ class AIPlayer(Player):
             action = -1
         return action
 
-    def analyze(self):
+    def analyze(self) -> int:
+        """
+        Return card_index depends on action type
+
+        Returns:
+            card_index (int): for action_choose
+        """
         if self.action == 'Attack':
             card_index = self.attacking()
         elif self.action == 'Defend':
@@ -1026,6 +1024,82 @@ class AIPlayer(Player):
             """
             card_index = self.passive_attacking()
         return card_index
+
+    pass
+
+
+class DummyPlayer(Player):
+    def __init__(self,
+                 player_number: int,
+                 player_type_num: int,
+                 epsilon: float
+                 ):
+        """
+        Initialization of Dummy player
+
+        Args:
+            player_number (str):        player number
+            player_type_num (int):      player type number
+
+        Returns:
+            None
+        """
+        super().__init__(player_number, player_type_num, epsilon=epsilon)
+        pass
+
+    def attacking(self) -> list:
+        """
+        Returns validated attack list
+
+        Returns:
+            attack_list (list): validated attack list
+        """
+        ''' 
+        Add to random choice one more option if we have something on table 
+        0 - pass
+        '''
+        attack_list = [0]
+        # если на столе уже что-то есть
+        if len(self.desktop_list) > 0:
+            attack_list.extend(self.get_validated_attack_list())
+        else:
+            attack_list = self.player_cards_onhand_list
+        return attack_list
+
+    def defending(self) -> list:
+        '''
+        Add to random choice one more option
+        0 - get cards
+        '''
+        defend_list = [0]
+        # Последняя карта в десктоп листе
+        attacking_card = self.desktop_list[(len(self.desktop_list)) - 1]
+        defend_list.extend(self.get_validated_defend_list(attacking_card))
+        return defend_list
+
+    def passive_attacking(self) -> list:
+        passive_attack_list = [0]
+        passive_attack_list.extend(self.get_validated_attack_list())
+        return passive_attack_list
+
+    def analyze(self):
+        """
+        Choose valid_card_list depends on action type
+
+        Returns:
+            valid_card_list (list): for action_choose
+        """
+        if self.action == 'Attack':
+            valid_card_list = self.attacking()
+        elif self.action == 'Defend':
+            valid_card_list = self.defending()
+        else:
+            """
+            self.action == 'Passive':
+            """
+            valid_card_list = self.passive_attacking()
+        return valid_card_list
+
     pass
 
 
@@ -1262,10 +1336,10 @@ class Table:
         for player_id in self.players_numbers_lst:
             if player_id == 1:
                 # self.pl[1] = Player(1, 1)
-                self.pl[1] = Player(1, 2)
+                self.pl[1] = Player(1, 2, 0.0)
             elif player_id == 2:
                 # Тип 2 - Computer
-                self.pl[player_id] = Player(player_id, 2)
+                self.pl[player_id] = Player(player_id, 2, 0.0)
         pass
 
     # Инициализируем словарь (массив) с деками игроков
@@ -1394,12 +1468,13 @@ class Table:
 
     def calc_rank_reward(self):
         """
-
+        Calculate rank reward from self.episode_players_ranks
 
         Returns:
+            rank_reward (float): rank reward
         """
         rank_rewards_lst = list(np.linspace(1.0, 0.0, num=self.players_qty))
-        rank_reward = rank_rewards_lst[len(self.episode_players_ranks)-1]
+        rank_reward = rank_rewards_lst[len(self.episode_players_ranks) - 1]
         return rank_reward
 
     def is_this_end_of_game(self) -> bool:
@@ -1473,7 +1548,9 @@ class Table:
         if self.debug_verbose > 1:
             self.print_msg(f'Индексы перемешанной колоды:\n{self.hidden_playing_deck_order}')
             for pl_number in self.players_numbers_lst:
-                self.print_msg(f'Player number № {pl_number}:{self.pl[pl_number].player_cards_onhand_list}')
+                self.print_msg(f'Player number № {pl_number}:{self.pl[pl_number].player_cards_onhand_list}'
+                               f'{self.pl[pl_number].show_cards_hor(self.pl[pl_number].player_cards_onhand_list)}')
+
         self.print_msg(f'Заход игрока {self.player_turn}, {self.pl[self.player_turn].player_name}')
         self.print_msg(
             f'Отбой игрока {self.next_player(self.player_turn)}, '
@@ -1760,7 +1837,7 @@ class Table:
                 self.print_msg(
                     f'Игрок {self.current_player_id} '
                     f'{self.pl[self.current_player_id].player_name} '
-                    f'отбивается, {"первый сброс" if self.first_discard else ""} ({int(len(self.desktop_list)/2)} пар),'
+                    f'отбивается, {"первый сброс" if self.first_discard else ""} ({int(len(self.desktop_list) / 2)} пар),'
                     f' карты уходят в сброс {self.pl[self.current_player_id].show_cards_hor(self.desktop_list)}')
 
                 self.add_2graveyard(self.desktop_list)
@@ -1920,7 +1997,7 @@ class Table:
                 self.print_msg(
                     f'Игрок {self.next_player(self.player_turn)} '
                     f'{self.pl[self.next_player(self.player_turn)].player_name} '
-                    f'отбивается, {"первый сброс" if self.first_discard else ""} ({int(len(self.desktop_list)/2)} пар),'
+                    f'отбивается, {"первый сброс" if self.first_discard else ""} ({int(len(self.desktop_list) / 2)} пар),'
                     f' карты уходят в сброс {self.pl[self.current_player_id].show_cards_hor(self.desktop_list)}')
                 self.add_2graveyard(self.desktop_list)
                 # убираем карты с десктопа
@@ -1951,12 +2028,24 @@ class Table:
 
 
 class Environment(Table):
+    dummy_player_action: int
+
     def __init__(self,
                  players_qty,
-                 games_qty: int,
+                 env_type='computer',
+                 observer_player=1,
+                 games_qty=1,
                  nnmodel=None):
         super().__init__(players_qty)
+        self.env_type = env_type
         self.games_qty: int = games_qty
+        self.nnmodel = nnmodel
+        self.players_types = {1: Player, 2: Player, 3: AIPlayer, 4: DummyPlayer}
+        self.step_not_done = True
+        self.num_actions = 37
+        assert observer_player <= players_qty
+        self.observer_player = observer_player
+
         self.game_idx: int = 0
         self.game_idxs: list = []
         self.game_winners: list = []
@@ -1964,13 +2053,14 @@ class Environment(Table):
         self.game_times: list = []
         self.game_rounds: list = []
         self.game_turns: int = 0
+
         self.first_game = True
         self.saved_playing_deck_order = []
         # self.replay_buffer = ExperienceReplay(None)
         self.replay_buffer = ExperienceReplay(30000)
         self.verbose = False
         self.train_process = True
-        self.nnmodel = nnmodel
+
         self.epsilon = 0.0
         self.optimizer = tf.keras.optimizers.Adam(learning_rate=0.00025)
         # self.loss_funct = tf.keras.losses.Huber()
@@ -1979,7 +2069,6 @@ class Environment(Table):
         if self.nnmodel is not None:
             self.init_nnmodel()
         self.turn_done = False
-        pass
 
     def init_nnmodel(self):
         if not self.compiled_status:
@@ -2033,29 +2122,57 @@ class Environment(Table):
         Returns:
             None
         """
-        # Иницианилизируем работу класса игроков и делаем их словарем
+
+        if self.env_type == "dummy":
+            players_types_setup = [(4, 0), (2, 1.0)]
+        elif self.env_type == "1computer-ai":
+            players_types_setup = [(2, self.epsilon), (3, self.epsilon)]
+        elif self.env_type == "1ai-computer":
+            players_types_setup = [(3, self.epsilon), (2, self.epsilon)]
+        else:
+            players_types_setup = [(2, self.epsilon), (2, self.epsilon)]
+
+        first_player_setup = players_types_setup[0]
+        other_players_setup = players_types_setup[1]
         self.print_msg(f'Кол-во игроков: {self.players_number}')
         for player_id in self.players_numbers_lst:
-            if player_id == 1:
-                # self.pl[1] = Player(1, 1, 0)
-                self.pl[1] = Player(1, 2, self.epsilon)
-            elif player_id >= 2:
-                # Тип 3 - AI
-                self.pl[player_id] = AIPlayer(player_id, 3, self.nnmodel, self.epsilon)
-            # else:
-            #     # Тип 2 - Computer
-            #     self.pl[player_id] = Player(player_id, 2)
+            if player_id == self.observer_player:
+                if first_player_setup[0] != 3:
+                    self.pl[player_id] = \
+                        self.players_types[first_player_setup[0]](1,
+                                                                  first_player_setup[0],
+                                                                  first_player_setup[1])
+                else:
+                    self.pl[player_id] = \
+                        self.players_types[first_player_setup[0]](1,
+                                                                  first_player_setup[0],
+                                                                  self.nnmodel,
+                                                                  first_player_setup[1])
+            elif player_id != self.observer_player:
+                if other_players_setup[0] != 3:
+                    self.pl[player_id] = \
+                        self.players_types[other_players_setup[0]](player_id,
+                                                                   other_players_setup[0],
+                                                                   other_players_setup[1])
+                else:
+                    self.pl[player_id] = \
+                        self.players_types[other_players_setup[0]](player_id,
+                                                                   other_players_setup[0],
+                                                                   self.nnmodel,
+                                                                   other_players_setup[1])
         pass
 
-    def _reset(self) -> None:
+    def reset(self) -> None:
         """
         Reset table (reinit)
 
         Returns:
-            None
+            state (np.array):   returns initial state
         """
         super().__init__(self.players_qty)
-        pass
+        self.prepare_new_game()
+        # TODO create another option for reset environment and return state may be choose the player
+        return self.pl[1].convert_deck_2state()
 
     def __add_report_data(self):
         self.game_idxs.append(self.game_idx)
@@ -2070,14 +2187,15 @@ class Environment(Table):
         self.set_table(start_table='new')
         self.first_game = False
         self.save_deck_order()
+        self.current_player_id = int(self.player_turn)
         pass
 
     def continue_series(self, start_type='next'):
         if self.verbose:
-            self._reset()
+            self.reset()
             self.verbose = True
         else:
-            self._reset()
+            self.reset()
         self.load_deck_order()
         self.start_time = time.time()
         self.set_table(start_table=start_type)
@@ -2165,7 +2283,7 @@ class Environment(Table):
         self.print_msg(msg)
         self.play_episode()
         self.__add_report_data()
-        self.game_turns = self.pl[self.episode_players_ranks[0]].game_turn-1
+        self.game_turns = self.pl[self.episode_players_ranks[0]].game_turn - 1
         ''' add data to buffer at training circle if reward is high '''
         # self.replay_buffer.extend(self.pl[2].episode_buffer)
         # last_turn = self.pl[2].episode_buffer[-1]
@@ -2183,6 +2301,456 @@ class Environment(Table):
         #     print(msg)
 
         return self.pl[self.episode_players_ranks[0]].game_reward, self.pl[self.episode_players_ranks[0]].episode_buffer
+
+
+    def current_player_attack_action(self) -> None:
+        if self.result > 0:
+            self.attack_player_empty_hand_flag = False
+            self.add_card_2desktop(self.result, self.action, self.current_player_id)
+            self.pl[self.current_player_id].add_attack_status(self.result)
+            self.pl[self.current_player_id].player_cards_onhand_list.remove(self.result)
+
+            ''' Save data about turn experience, with action_idx (self.result) '''
+            # if self.pl[self.current_player_id].player_type == 'AI':
+            self.pl[self.current_player_id].add_turn_experience(self.result)
+
+            # print(f'Ход игрока {player_number}
+            # {self.pl[player_number].player_name} - {self.pl[player_number].show_card(result)}')
+            self.print_msg(
+                f'Ход игрока {self.current_player_id} {self.pl[self.current_player_id].player_name} под игрока '
+                f'{self.next_player(self.current_player_id)} '
+                f'{self.pl[self.current_player_id].show_card(self.result)}')
+            # print (f'Атака игрока {player_number}',self.pl[player_number].show_card(result))
+            # print ('Десктоп', self.desktop_list)
+            # передача по кругу следующему игроку
+            self.current_player_id = self.next_player(self.current_player_id)
+            # выставляем флаг, что мы не пасуем
+            self.set_attack_player_pass_flag(False)
+            # print ('PN',player_number, 'PT',self.player_turn)
+            # self.show_all_cards()
+            # self.if_human_pause(player_number)
+            # if self.if_player_hand_and_deck_empty(player_number):
+            #     self.attack_player_empty_hand_flag = True
+            return
+        elif self.result == 0:
+            ''' if only 2 players and the player action is pass (self.result == 0) '''
+            if self.players_number == 2:
+                # Карты уходят в сброс того что входит
+                self.print_msg(
+                    f'Игрок {self.current_player_id} {self.pl[self.current_player_id].player_name} пасует, '
+                    f'карты уходят в сброс {self.pl[self.current_player_id].show_cards_hor(self.desktop_list)}')
+                self.add_2graveyard(self.desktop_list)
+                # убираем карты с десктопа
+                self.rem_cards_from_desktop()
+
+                ''' Save data about turn experience, with action_idx (self.result) '''
+                # if self.pl[self.current_player_id].player_type == 'AI':
+                self.pl[self.current_player_id].add_turn_experience(self.result)
+
+                # Переход хода
+                self.next_turn()
+                if self.check_end_of_game():
+                    return
+                # Переход кона,
+                self.next_round()
+                self.current_player_id = int(self.player_turn)
+                return
+            # Проверяем флаги, что мы уже пасовали
+            # и пассивные игроки пасовали и можно отправить карты в сброс
+            elif self.players_number > 2 and \
+                    self.check_passive_players_pass_flag() and \
+                    self.check_attack_player_pass_flag():
+                # Карты уходят в сброс
+                self.print_msg(f'Карты уходят в сброс '
+                               f'{self.pl[self.current_player_id].show_cards_hor(self.desktop_list)}')
+                self.add_2graveyard(self.desktop_list)
+                # убираем карты с десктопа
+                self.rem_cards_from_desktop()
+
+                ''' Save data about turn experience, with action_idx (self.result) '''
+                # if self.pl[self.current_player_id].player_type == 'AI':
+                self.pl[self.current_player_id].add_turn_experience(self.result)
+
+                # Переход хода
+                self.next_turn()
+                # если этот игрок
+                if self.check_end_of_game():
+                    return
+                # Переход кона,
+                self.next_round()
+                # Смена игрока и переход ему хода
+                self.current_player_id = int(self.player_turn)
+                return
+            # если в сброс карты не отправились, то....
+            elif self.players_number > 2:
+                # мы пасуем, но может сходить следующий игрок.
+                # Поэтому мы передаем ход через 1 игрока (отбивающегося)
+                self.print_msg(f'Игрок {self.current_player_id} '
+                               f'{self.pl[self.current_player_id].player_name} пасует, можно подбрасывать')
+
+                ''' Save data about turn experience, with action_idx (self.result) '''
+                # if self.pl[self.current_player_id].player_type == 'AI':
+                #     self.pl[self.current_player_id].add_turn_experience(self.result)
+
+                self.current_player_id = self.next_player(self.next_player(self.current_player_id))
+                # и выставляем флаг, что мы пасуем
+                self.set_attack_player_pass_flag(True)
+            return
+        pass
+
+    def current_player_defend_action(self) -> None:
+        if self.result > 0:
+            self.pl[self.current_player_id].add_defending_status(self.result)
+            # print(self.pl[player_number].player_cards_onhand_list, result)
+            self.pl[self.current_player_id].player_cards_onhand_list.remove(self.result)
+            self.add_card_2desktop(self.result, self.action, self.current_player_id)
+
+            ''' Save data about turn experience, with action_idx (self.result) '''
+            # if self.pl[self.current_player_id].player_type == 'AI':
+            self.pl[self.current_player_id].add_turn_experience(self.result)
+
+            # print(
+            #     f'Игрок {player_number}
+            #     {self.pl[player_number].player_name} отбивается - {self.pl[player_number].show_card(result)}')
+            self.print_msg(
+                f'Игрок {self.current_player_id} {self.pl[self.current_player_id].player_name} '
+                f'отбивается {self.pl[self.current_player_id].show_card(self.result)}')
+            # print ('Десктоп', self.desktop_list)
+
+            # print ('PN',player_number, 'PT',self.player_turn)
+            # self.if_human_pause(player_number)
+            '''
+            если в руке больше нет карт на отбой и в колоде пусто ИЛИ
+            если нам не достанется ничего из колоды при раздаче и в руке нет больше карт на отбой
+            - мы выходим из игры и нас исключают из списка играющих. Остальные играют дальше
+            Переход хода идет на следующего игрока (следующего за отбивающимся)
+            '''
+            if self.if_player_hand_and_deck_empty(self.current_player_id) or \
+                    ((35 - self.hidden_deck_index) < len(self.desktop_list) // 2 and
+                     (len(self.pl[self.current_player_id].player_cards_onhand_list) == 0)):
+                if self.players_number != 2:
+                    self.next_turn()
+                self.next_turn()
+                if self.check_end_of_game():
+                    return
+                self.next_round()
+                self.current_player_id = int(self.player_turn)
+                return
+            elif (len(self.desktop_list) == 12) or \
+                    (self.first_discard and len(self.desktop_list) == 10):
+                self.print_msg(
+                    f'Игрок {self.current_player_id} '
+                    f'{self.pl[self.current_player_id].player_name} '
+                    f'отбивается, {"первый сброс" if self.first_discard else ""} ({int(len(self.desktop_list) / 2)} пар),'
+                    f' карты уходят в сброс {self.pl[self.current_player_id].show_cards_hor(self.desktop_list)}')
+
+                self.add_2graveyard(self.desktop_list)
+                # убираем карты с десктопа
+                self.rem_cards_from_desktop()
+                # Переход хода
+                if self.check_end_of_game():
+                    return
+                # Переход кона,
+                self.next_turn()
+                self.next_round()
+                # Смена игрока и переход ему хода
+                self.current_player_id = int(self.player_turn)
+                # self.if_human_pause(player_number)
+                return
+            # передача по кругу следующему игроку
+            self.current_player_id = self.next_player(self.current_player_id)
+            return
+        elif self.result == 0:
+            # Если забираем карты (нет отбоя)
+            self.print_msg(
+                f'Игрок {self.current_player_id} '
+                f'{self.pl[self.current_player_id].player_name} забирает '
+                f'{self.pl[self.current_player_id].show_cards_hor(self.desktop_list)}')
+
+            ''' Мы забрали карты со стола '''
+            self.add_cardslist_2player_hand(self.current_player_id, self.desktop_list)
+
+            ''' Save data about turn experience, with action_idx (self.result) '''
+            # if self.pl[self.current_player_id].player_type == 'AI':
+            self.pl[self.current_player_id].add_turn_experience(self.result)
+
+            # проверяем на наличие карт
+            # если игроков 2 и пас то, если 2 игрока просто следующий кон,
+            # но игрок остается тот-же
+            if self.players_number == 2:
+                if self.check_end_of_game():
+                    return
+                # убираем карты с десктопа
+                self.rem_cards_from_desktop()
+                # Переход кона,
+                self.next_round()
+                # Перехода хода нет - ход остается у прежнего игрока
+                # передаем ход ему обратно
+                self.current_player_id = self.player_turn
+            elif self.players_number > 2:
+                ''' если игроков больше 2-х, переход хода на 2 вперед '''
+                self.next_turn()
+                self.next_turn()
+                if self.check_end_of_game():
+                    return
+                # убираем карты с десктопа.
+                self.rem_cards_from_desktop()
+                # смена раунда
+                self.next_round()
+                # ходить будет игрок которому передали ход
+                self.current_player_id = int(self.player_turn)
+            # self.if_human_pause(player_number)
+            return
+        # elif self.result < 0:
+        #     # пропускаем ход (к пассивному игроку)
+        #
+        #     ''' Save data about turn experience, with action_idx (self.result) '''
+        #     # if self.pl[self.current_player_id].player_type == 'AI':
+        #     #     self.pl[self.current_player_id].add_turn_experience(self.result)
+        #
+        #     self.current_player_id = self.next_player(self.current_player_id)
+        #     # self.show_all_cards(player_number)
+        #     # self.action, self.result = self.pl[player_number].turn()
+        #     return
+        pass
+
+    def current_player_passive_action(self) -> None:
+        if self.result > 0:
+            '''
+            выставляем флаг, что _не_ пасуем
+            если атакующий игрок пасует и на столе меньше 11 (то есть 10) карт
+            '''
+            self.pl[self.current_player_id].add_attack_status(self.result)
+            self.pl[self.current_player_id].player_cards_onhand_list.remove(self.result)
+            self.add_card_2desktop(self.result, self.action, self.current_player_id)
+
+            ''' Save data about turn experience, with action_idx (self.result) '''
+            # if self.pl[self.current_player_id].player_type == 'AI':
+            self.pl[self.current_player_id].add_turn_experience(self.result)
+
+            # print(f'Подброс от игрока {player_number} - {self.pl[player_number].show_card(result)}')
+            self.print_msg(
+                f'Подброс от игрока {self.current_player_id} '
+                f'{self.pl[self.current_player_id].show_card(self.result)}')
+            # print ('Десктоп', self.desktop_list)
+            # Пассивный игрок сходил, ставим флаг
+            self.set_passive_player_pass_flag(self.current_player_id, False)
+            # Переставляем флаг пасующего атакующего на - False
+            self.set_attack_player_pass_flag(False)
+            # передача отбивающемуся
+            self.current_player_id = self.next_player(self.player_turn)
+            # self.if_human_pause(player_number)
+            return
+        elif self.result == 0:
+            ''' Save data about turn experience, with action_idx (self.result) '''
+            # if self.pl[self.current_player_id].player_type == 'AI':
+            self.pl[self.current_player_id].add_turn_experience(self.result)
+
+            # мы пасуем
+            self.print_msg(
+                f'Игрок {self.current_player_id} {self.pl[self.current_player_id].player_name} тоже пасует')
+            # игрок не ходит, ставим флаг
+            self.set_passive_player_pass_flag(self.current_player_id, True)
+            # print ('Десктоп', self.desktop_list)
+            '''
+            Пасивный игрок не решает о переходе хода,
+            только атакующий. Поскольку мы только подбрасываем
+            здесь только передача по кругу следующему игроку
+            '''
+            self.current_player_id = self.next_player(self.current_player_id)
+            # self.if_human_pause(player_number)
+            # self.show_all_cards()
+            return
+
+        # elif self.action == 'Passive' and self.result < 0:
+        #     ''' Save data about turn experience, with action_idx (self.result) '''
+        #     # if self.pl[self.current_player_id].player_type == 'AI':
+        #     #     self.pl[self.current_player_id].add_turn_experience(self.result)
+        #
+        #     self.print_msg(
+        #         f'Игрок {self.current_player_id} {self.pl[self.current_player_id].player_name} '
+        #         f'пропускает ход, ждем сигнал от атакующего')
+        #     self.set_passive_player_pass_flag(self.current_player_id, False)
+        #     self.current_player_id = self.next_player(self.current_player_id)
+        #     return
+        pass
+
+    def queue_to_get_dummy_action_idx(self) -> bool:
+        """
+        Getting new dummy action_idx in queue
+
+        Returns:
+            (bool):  True if queue to get new dummy action_idx
+        """
+        if self.pl[self.current_player_id].player_type != 'Dummy':
+            self.result = self.pl[self.current_player_id].turn(self.action)
+        else:
+            self.pl[self.current_player_id].action = self.action
+            if self.first_step:
+                self.step_not_done = False
+                return True
+            elif self.step_not_done and not self.have_hit:
+                '''
+                Using action from external source if player dummmy 
+                '''
+                self.result = self.dummy_player_action
+                self.have_hit = True
+            else:
+                self.step_not_done = False
+                return True
+            # if self.step_not_done and not self.have_hit:
+            #     '''
+            #     Using action from external source if player dummmy
+            #     '''
+            #     self.result = self.dummy_player_action
+            #     self.have_hit = True
+            # else:
+            #     self.step_not_done = False
+            #     # break
+            #     return True
+        return False
+
+    def step(self,
+             dummy_player_action,
+             first_step=False):
+        self.dummy_player_action = dummy_player_action
+        self.step_not_done = True
+        self.first_step = first_step
+        self.have_hit = False
+
+        while self.game_circle and self.step_not_done:
+            if (len(self.desktop_list) == 12) or \
+                    (self.first_discard and len(self.desktop_list) == 10):
+                self.print_msg(
+                    f'Игрок {self.next_player(self.player_turn)} '
+                    f'{self.pl[self.next_player(self.player_turn)].player_name} '
+                    f'отбивается, {"первый сброс" if self.first_discard else ""} '
+                    f'({int(len(self.desktop_list) / 2)} пар),'
+                    f' карты уходят в сброс {self.pl[self.current_player_id].show_cards_hor(self.desktop_list)}')
+                self.add_2graveyard(self.desktop_list)
+                # убираем карты с десктопа
+                self.rem_cards_from_desktop()
+                # Переход хода
+                self.next_turn()
+                if self.check_end_of_game():
+                    continue
+                # Переход кона,
+                self.next_round()
+                # Смена игрока и переход ему хода
+                self.current_player_id = int(self.player_turn)
+                # self.if_human_pause(player_number)
+            ''' 
+            Center of the main game circle 
+            '''
+            self.show_all_cards(self.current_player_id)
+            self.action = self.take_action(self.current_player_id)
+
+            if self.action == 'Attack':
+                if self.queue_to_get_dummy_action_idx():
+                    continue
+                self.current_player_attack_action()
+                continue
+            if self.action == 'Defend':
+                if not self.pl[self.current_player_id].attack_player_pass_flag \
+                        or not self.pl[self.current_player_id].passive_player_pass_flag:
+                    check_parity = (len(self.pl[self.current_player_id].desktop_list) + 1) % 2
+                    if check_parity == 0:
+                        if self.queue_to_get_dummy_action_idx():
+                            continue
+                        ''' Main defend action '''
+                        self.current_player_defend_action()
+                    else:
+                        self.print_msg(f'Игрок {self.current_player_id} '
+                                       f'{self.pl[self.current_player_id].player_name} пропускает ход к след игроку')
+                        self.current_player_id = self.next_player(self.current_player_id)
+                else:
+                    # если мы ждем то пропускаем к следующему игроку (например когда пасует атакующий)
+                    self.print_msg(f'Игрок {self.current_player_id} '
+                                   f'{self.pl[self.current_player_id].player_name} пропускает ход к след игроку')
+                    self.current_player_id = self.next_player(self.current_player_id)
+                continue
+
+            if self.action == 'Passive':
+                if (0 < len(self.pl[self.current_player_id].desktop_list) < 11) \
+                        and self.pl[self.current_player_id].attack_player_pass_flag:
+                    if self.queue_to_get_dummy_action_idx():
+                        continue
+                    ''' Main passive action '''
+                    self.current_player_passive_action()
+                else:
+                    self.print_msg(
+                        f'Игрок {self.current_player_id} {self.pl[self.current_player_id].player_name} '
+                        f'пропускает ход, ждем сигнал от атакующего')
+                    self.set_passive_player_pass_flag(self.current_player_id, False)
+                    self.current_player_id = self.next_player(self.current_player_id)
+                continue
+
+        turn_state = self.pl[self.observer_player].convert_deck_2state()
+        turn_reward = .0
+
+        if not self.game_circle:
+            turn_reward = self.calc_rank_reward()
+        is_done = not self.game_circle
+        info = {'action_external': dummy_player_action}
+        ''' Reseting flags '''
+        # have_hit = False
+        # step_not_done = True
+
+        return turn_state, turn_reward, is_done, info
+
+
+class Agent:
+    def __init__(self, env, exp_buffer):
+        self.env = env
+        self.observer_player = env.observer_player
+        self.exp_buffer = exp_buffer
+        self._reset()
+        pass
+
+    def _reset(self):
+        self.state = self.env.reset()
+        self.total_reward = 0.0
+        self.env.verbose = True
+        self.env.debug_verbose = 2
+
+        self.env.step(0, first_step=True)
+
+        pass
+
+    def play_step(self, nnmodel, epsilon=0.0):
+        done_reward = None
+        valid_action_list = list(self.env.pl[self.observer_player].analyze())
+        msg_before = f"Before valid actions list {valid_action_list}"
+        if np.random.random() < epsilon:
+            action = random.choice(valid_action_list)
+        else:
+            state_a = np.array([self.state], copy=False)
+            state_tensor = tf.convert_to_tensor(state_a)
+            q_values = nnmodel(state_tensor, training=False)
+            # with np.printoptions(precision=3, suppress=True):
+            #     print(q_values.numpy())
+            valid_masks = tf.one_hot(valid_action_list, self.env.num_actions)
+            # with np.printoptions(precision=3, suppress=True):
+            #     print(masks.numpy())
+            valid_q_values = tf.expand_dims(tf.reduce_sum(tf.multiply(q_values, valid_masks), axis=0), 0)
+            # with np.printoptions(precision=3, suppress=True):
+            #     print(valid_q_values.numpy())
+            action = np.argmax(valid_q_values)
+            # print(self.action, action_list, action)
+            if not (action in valid_action_list):
+                action = valid_action_list[0]
+        new_state, reward, is_done, _ = self.env.step(action)
+        print("Last action", action)
+        print(msg_before)
+        self.total_reward += reward
+        exp = Experience(self.state, action, reward, is_done, new_state)
+        self.exp_buffer.append(exp)
+        self.state = new_state
+        if is_done:
+            done_reward = self.total_reward
+            ''' for testing purpose '''
+            # self._reset()
+        return done_reward
 
 
 # Основное тело, перенести потом в инит часть логики
@@ -2203,12 +2771,49 @@ if __name__ == '__main__':
     #     except (TypeError, ValueError):
     #         print("Неправильный ввод")
     players_num = 4
+    model = q_model_conv(in_shape=(37, 20 + players_num,), num_actions=37)
+    model.compile(optimizer=tf.keras.optimizers.Adam(), loss=tf.keras.losses.MSE)
+
+    buffer = ExperienceReplay(20000)
+
+    environment = Environment(players_num,
+                              env_type="dummy",
+                              observer_player=1,
+                              nnmodel=model)
+
+    msg = f'--------------------------------------------------------------\n' \
+          f'                      1st step start                          \n' \
+          f'--------------------------------------------------------------\n'
+    print(msg)
+    test_agent = Agent(environment,
+                       exp_buffer=buffer)
+    msg = f'--------------------------------------------------------------\n' \
+          f'                      1st step end                            \n' \
+          f'--------------------------------------------------------------\n'
+    print(msg)
+    reward = None
+    counter = 0
+    while reward is None:
+        counter += 1
+        msg = f'--------------------------------------------------------------\n' \
+              f'                         step start                           \n' \
+              f'--------------------------------------------------------------\n'
+        print(msg)
+        reward = test_agent.play_step(model, epsilon=0.5)
+        msg = f'--------------------------------------------------------------\n' \
+              f'                          step end                            \n' \
+              f'--------------------------------------------------------------\n'
+        print(msg)
+        print(f"Reward turn {counter:02d} {reward}\n")
+
+    """
+    players_num = 4
     model = q_model_conv(in_shape=(37, 21 + players_num,), num_actions=37)
     # model = DQNDense(input_shape=(37, 20 + players_num,), output_shape=37)
 
     fool_game = Environment(players_num,
-                            games_num,
-                            model)
+                            env_type="1ai-computer",
+                            nnmodel=model)
     fool_game.verbose = True
     fool_game.debug_verbose = True
     # fool_game.play_series(start_type='next')
@@ -2222,7 +2827,7 @@ if __name__ == '__main__':
         # if ai_repeat == 'new':
         # fool_game.prepare_new_game()
         fool_game.first_game = True
-        fool_game._reset()
+        fool_game.reset()
         # print(ai_repeat)
         fool_game.verbose = True
         reward, episode_buffer = fool_game.train_episode_AI(start_type=ai_repeat, nnmodel=model, epsilon=.99)
@@ -2241,3 +2846,4 @@ if __name__ == '__main__':
         # total_count += 1
 
     # fool_game.train_episode_AI(start_type='next', epsilon=.5)
+    """
