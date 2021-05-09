@@ -26,7 +26,7 @@ from tensorflow.keras import layers
 # from tensorflow.keras.layers import BatchNormalization
 # from tensorflow.keras.optimizers import RMSprop, Adam, SGD, RMSprop
 
-__version__ = "0.01.90"
+__version__ = "0.01.92"
 
 Experience = collections.namedtuple('Experience', field_names=['state', 'action', 'reward', 'done', 'next_state'])
 
@@ -161,9 +161,9 @@ class Deck:
         [4] сброс (graveyard)
             - 0 - не в сбросе
             - 1 - в сбросе
-        [5] Номер раунда
-            - 0 если карта в колоде или у игрока в руке
-            - N если карта выложена на стол на раунде N
+        [5] Last action card
+            - 0 if card is not last action
+            - 1 if card is last action card
         [6] - Вес карты
     """
 
@@ -499,9 +499,15 @@ class Player(Deck):
         ''' add graveyard status '''
         status[2] = 1
 
-        # round number for graveyard
-        status[3] = self.game_round
+        # set this card as last action card (False flag)
+        status[3] = 0
         self.change_card_status(index, status)
+        pass
+
+    def remove_last_action_card_status(self, index):
+        status = self.get_current_status(index)
+        # set this card as last action card (True flag)
+        status[3] = 0
         pass
 
     def add_attack_status(self, index):
@@ -510,8 +516,10 @@ class Player(Deck):
         status[0] = self.player_number
         # attack status
         status[1] = 1
-        # round number for attack
-        status[3] = self.game_round
+        if self.desktop_list:
+            self.remove_last_action_card_status(self.desktop_list[-1])
+        # set this card as last action card (True flag)
+        status[3] = 1
         self.change_card_status(index, status)
         pass
 
@@ -531,7 +539,9 @@ class Player(Deck):
         # defend status
         status[1] = 2
         # round number for attack
-        status[3] = self.game_round
+        self.remove_last_action_card_status(self.desktop_list[-1])
+        # set this card as last action card (True flag)
+        status[3] = 1
         self.change_card_status(index, status)
         pass
 
@@ -1136,6 +1146,7 @@ class Table:
         self.first_discard = True
         self.game_circle = True
         self.verbose = False
+        self.rank_rewards_lst = list(np.linspace(1.0, 0.0, num=self.players_qty))
         pass
 
     def print_msg(self, msg: str) -> None:
@@ -1257,7 +1268,8 @@ class Table:
                     status[0] = player_number
                     # on hand status
                     status[1] = 3
-                    status[3] = self.game_round
+                    ''' clearing last action card status from all cards '''
+                    status[3] = 0
                     self.pl[player_id].change_card_status(index, status)
                 else:
                     self.pl[player_id].add_player_status(index)
@@ -1378,7 +1390,6 @@ class Table:
         status[1] = 3
         for player_id in self.players_numbers_lst:
             self.pl[player_id].change_card_status(index, status)
-            # self.pl[player_number].change_card_status(index, 'P' + str(player))
         pass
 
     def set_table(self, start_table='new'):
@@ -1466,15 +1477,15 @@ class Table:
             self.congratulations()
         return result
 
-    def calc_rank_reward(self):
+    def calc_rank_reward(self, player_number) -> float:
         """
         Calculate rank reward from self.episode_players_ranks
-
+        Args:
+            player_number (int): player number
         Returns:
             rank_reward (float): rank reward
         """
-        rank_rewards_lst = list(np.linspace(1.0, 0.0, num=self.players_qty))
-        rank_reward = rank_rewards_lst[len(self.episode_players_ranks) - 1]
+        rank_reward = self.rank_rewards_lst[self.episode_players_ranks.index(player_number)]
         return rank_reward
 
     def is_this_end_of_game(self) -> bool:
@@ -1494,12 +1505,12 @@ class Table:
                 self.rem_cards_from_desktop()
 
                 # if self.pl[player_id].player_type == 'AI':
-                rank_reward = self.calc_rank_reward()
+                rank_reward = float(self.calc_rank_reward(player_id))
                 '''
                 Why zero (0)?
                 '''
                 self.pl[player_id].add_turn_experience(0)
-                self.pl[player_id].game_reward = float(rank_reward)
+                self.pl[player_id].game_reward = rank_reward
                 self.pl[player_id].add_round_experience()
                 self.pl[player_id].add_episode_experience(rank_reward)
 
@@ -1507,7 +1518,7 @@ class Table:
                     self.looser = self.next_player(player_id)
                     self.episode_players_ranks.append(self.looser)
                     # if self.pl[self.looser].player_type == 'AI':
-                    rank_reward = self.calc_rank_reward()
+                    rank_reward = self.calc_rank_reward(self.looser)
                     self.pl[self.looser].game_reward = float(rank_reward)
                     self.pl[self.looser].add_round_experience()
                     self.pl[self.looser].add_episode_experience(rank_reward)
@@ -2045,6 +2056,7 @@ class Environment(Table):
         self.num_actions = 37
         assert observer_player <= players_qty
         self.observer_player = observer_player
+        self.episode_players_ranks = []
 
         self.game_idx: int = 0
         self.game_idxs: list = []
@@ -2575,6 +2587,19 @@ class Environment(Table):
         #     return
         pass
 
+    # Нужно переставлять ход ДО вызова.
+    def one_more_is_out(self, player_number):
+        if player_number == self.player_turn:
+            self.next_turn()
+        self.players_numbers_lst.remove(player_number)
+        if player_number == self.observer_player:
+            self.game_circle = False
+        # уменьшаем кол-во игроков
+        self.players_number -= 1
+        # переносим переход хода
+        # self.player_turn = self.next_player(self.player_turn)
+        pass
+
     def queue_to_get_dummy_action_idx(self) -> bool:
         """
         Getting new dummy action_idx in queue
@@ -2595,19 +2620,12 @@ class Environment(Table):
                 '''
                 self.result = self.dummy_player_action
                 self.have_hit = True
+            elif not self.game_circle:
+                self.step_not_done = False
+                return True
             else:
                 self.step_not_done = False
                 return True
-            # if self.step_not_done and not self.have_hit:
-            #     '''
-            #     Using action from external source if player dummmy
-            #     '''
-            #     self.result = self.dummy_player_action
-            #     self.have_hit = True
-            # else:
-            #     self.step_not_done = False
-            #     # break
-            #     return True
         return False
 
     def step(self,
@@ -2647,7 +2665,20 @@ class Environment(Table):
 
             if self.action == 'Attack':
                 if self.queue_to_get_dummy_action_idx():
-                    continue
+                    turn_state = self.pl[self.current_player_id].convert_deck_2state()
+                    turn_reward = .0
+                    if self.episode_players_ranks:
+                        if self.current_player_id in self.episode_players_ranks:
+                            self.game_circle = False
+                            turn_reward = self.calc_rank_reward(self.current_player_id)
+                    is_done = not self.game_circle
+                    info = {'action_external': dummy_player_action,
+                            'turn_reward': turn_reward,
+                            'is_done': is_done,
+                            'players_ranks': self.episode_players_ranks
+                            }
+                    return turn_state, turn_reward, is_done, info
+                ''' Main attack action '''
                 self.current_player_attack_action()
                 continue
             if self.action == 'Defend':
@@ -2656,7 +2687,19 @@ class Environment(Table):
                     check_parity = (len(self.pl[self.current_player_id].desktop_list) + 1) % 2
                     if check_parity == 0:
                         if self.queue_to_get_dummy_action_idx():
-                            continue
+                            turn_state = self.pl[self.current_player_id].convert_deck_2state()
+                            turn_reward = .0
+                            if self.episode_players_ranks:
+                                if self.current_player_id in self.episode_players_ranks:
+                                    self.game_circle = False
+                                    turn_reward = self.calc_rank_reward(self.current_player_id)
+                            is_done = not self.game_circle
+                            info = {'action_external': dummy_player_action,
+                                    'turn_reward': turn_reward,
+                                    'is_done': is_done,
+                                    'players_ranks': self.episode_players_ranks
+                                    }
+                            return turn_state, turn_reward, is_done, info
                         ''' Main defend action '''
                         self.current_player_defend_action()
                     else:
@@ -2674,7 +2717,19 @@ class Environment(Table):
                 if (0 < len(self.pl[self.current_player_id].desktop_list) < 11) \
                         and self.pl[self.current_player_id].attack_player_pass_flag:
                     if self.queue_to_get_dummy_action_idx():
-                        continue
+                        turn_state = self.pl[self.current_player_id].convert_deck_2state()
+                        turn_reward = .0
+                        if self.episode_players_ranks:
+                            if self.current_player_id in self.episode_players_ranks:
+                                self.game_circle = False
+                                turn_reward = self.calc_rank_reward(self.current_player_id)
+                        is_done = not self.game_circle
+                        info = {'action_external': dummy_player_action,
+                                'turn_reward': turn_reward,
+                                'is_done': is_done,
+                                'players_ranks': self.episode_players_ranks
+                                }
+                        return turn_state, turn_reward, is_done, info
                     ''' Main passive action '''
                     self.current_player_passive_action()
                 else:
@@ -2686,16 +2741,13 @@ class Environment(Table):
                 continue
 
         turn_state = self.pl[self.observer_player].convert_deck_2state()
-        turn_reward = .0
-
-        if not self.game_circle:
-            turn_reward = self.calc_rank_reward()
-        is_done = not self.game_circle
-        info = {'action_external': dummy_player_action}
-        ''' Reseting flags '''
-        # have_hit = False
-        # step_not_done = True
-
+        turn_reward = self.calc_rank_reward(self.observer_player)
+        is_done = True
+        info = {'action_external': dummy_player_action,
+                'turn_reward': turn_reward,
+                'is_done': is_done,
+                'players_ranks': self.episode_players_ranks
+                }
         return turn_state, turn_reward, is_done, info
 
 
@@ -2704,17 +2756,17 @@ class Agent:
         self.env = env
         self.observer_player = env.observer_player
         self.exp_buffer = exp_buffer
+        self.verbose = False
+        self.debug_verbose = 1
         self._reset()
         pass
 
     def _reset(self):
         self.state = self.env.reset()
         self.total_reward = 0.0
-        self.env.verbose = True
-        self.env.debug_verbose = 2
-
+        self.env.verbose = self.verbose
+        self.env.debug_verbose = self.debug_verbose
         self.env.step(0, first_step=True)
-
         pass
 
     def play_step(self, nnmodel, epsilon=0.0):
@@ -2739,17 +2791,20 @@ class Agent:
             # print(self.action, action_list, action)
             if not (action in valid_action_list):
                 action = valid_action_list[0]
-        new_state, reward, is_done, _ = self.env.step(action)
-        print("Last action", action)
-        print(msg_before)
+        new_state, reward, is_done, info = self.env.step(action)
+        if self.verbose:
+            print("Last action", action)
+            print(msg_before)
+            print(info)
         self.total_reward += reward
         exp = Experience(self.state, action, reward, is_done, new_state)
         self.exp_buffer.append(exp)
         self.state = new_state
         if is_done:
             done_reward = self.total_reward
-            ''' for testing purpose '''
-            # self._reset()
+            self.verbose = False
+            self.debug_verbose = 1
+            self._reset()
         return done_reward
 
 
