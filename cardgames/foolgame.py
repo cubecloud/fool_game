@@ -13,6 +13,8 @@
 #  limitations under the License.
 
 import random
+from typing import Tuple
+# import pydantic
 import numpy as np
 import pickle as pkl
 import collections
@@ -26,7 +28,7 @@ from tensorflow.keras import layers
 # from tensorflow.keras.layers import BatchNormalization
 # from tensorflow.keras.optimizers import RMSprop, Adam, SGD, RMSprop
 
-__version__ = "0.01.96"
+__version__ = "0.01.97"
 
 
 def q_model_conv(in_shape=(37, 25,), num_actions=37):
@@ -55,7 +57,9 @@ def q_model_dense(in_shape=(37, 25,), num_actions=37):
     action = layers.Dense(num_actions, activation="linear", kernel_initializer=initializer)(layer2)
     return tensorflow.keras.Model(inputs=inputs, outputs=action)
 
+
 Experience = collections.namedtuple('Experience', field_names=['state', 'action', 'reward', 'done', 'next_state'])
+
 
 class ExperienceReplay:
     def __init__(self, capacity):
@@ -192,43 +196,40 @@ class Deck:
         self.suits_names = {1: "Пики", 2: "Крести", 3: "Бубны", 4: "Черви"}
         self.suits_icons = {'П': '\u2660', 'К': '\u2663', 'Б': '\u2666', 'Ч': '\u2665'}
         self.debug_verbose = 1
-
     pass
 
-    def change_card_status(self, index, status):
+    def change_card_status(self, index: int, status: list):
         self.player_deck[index][2:6] = status
         pass
 
-    def get_cardinfo(self, index):
+    def get_cardinfo(self, index: int):
         return self.player_deck[index]
 
-    def get_current_status(self, index):
+    def get_current_status(self, index: int):
         return self.player_deck[index][2:6]
 
-    def change_card_weight(self, index, new_weight):
+    def change_card_weight(self, index: int, new_weight: int):
         self.player_deck[index][6] = new_weight
         pass
 
-    def get_card_weight(self, index):
+    def get_card_weight(self, index: int):
         return self.player_deck[index][6]
 
-    def add_card_weight(self, index, add_weight):
+    def add_card_weight(self, index: int, add_weight):
         return self.change_card_weight(index, self.get_card_weight(index) + add_weight)
 
     def what_suit(self, index: int) -> str:
-        card = self.player_deck[index]
-        suit_char_index = card[0]
-        return self.suit_chars.get(suit_char_index)
+        return self.suit_chars.get(self.player_deck[index][0])
 
-    def what_rank(self, index):
+    def what_rank(self, index: int):
         return self.player_deck[index][1]
 
-    def add_weight_2suit(self, suit_char, add_weight):
+    def add_weight_2suit(self, suit_char: str, add_weight: int):
         for index in range(self.suit_range[suit_char][0], self.suit_range[suit_char][1]):
             self.add_card_weight(index, add_weight)
         pass
 
-    def show_card(self, index):
+    def show_card(self, index: int):
         suit = self.what_suit(index)
         # Пока не удалось решить проблему с выводом цветного текста сразу из переменной словаря
         # Делаем проверку и присваиваем цвет через print(f'{переменная}'
@@ -345,7 +346,8 @@ class Player(Deck):
         '''
         state.append(list(card_state))
         state[0] = list(np.zeros(shape=(21 + self.players_number), dtype=np.float32))
-        for ix, card_value in enumerate(self.player_deck.values()):
+        player_deck = copy.deepcopy(self.player_deck)
+        for ix, card_value in enumerate(player_deck.values()):
             # if self.debug_verbose > 1:
             #     print(ix+1, card_value)
             '''
@@ -1288,7 +1290,7 @@ class Table:
     # Выбор игрока с первым ходом
     # логика: сначалас ищем игрока с наименьшим козырем,
     # если такого нет ищется игрок с наименьшей картой (по рангу масти)
-    def first_turn_choice(self):
+    def first_turn_choice(self) -> Tuple[int, int]:
         # print ("Идет выбор ходящего первым")
         min_card_index: dict = {}
         for player_id in self.players_numbers_lst:
@@ -1299,6 +1301,10 @@ class Table:
             min_card_player = min(min_card_index.keys(), key=(lambda k: min_card_index[k]))
             # print (f'Минимальная карта у игрока {min_card_player}, это карта',
             # self.show_card(min_card_index[min_card_player]))
+            if not isinstance(min_card_index[min_card_player], int):
+                for player_number1 in self.players_numbers_lst:
+                    min_card_index[player_number1] = self.pl[player_number1].lowest_from_hand()
+                min_card_player = (min(min_card_index.items(), key=lambda x: x[1])[0])
             return min_card_player, min_card_index[min_card_player]
         # если есть пустые листы
         except (TypeError, ValueError):
@@ -1375,9 +1381,10 @@ class Table:
     def show_first_turn_card(self):
         player, index = self.first_turn_choice()
         self.player_turn = player
-        if self.verbose:
-            print(f'Ходит игрок №{player} {self.pl[player].player_name}, у него меньшая карта '\
-                  f'{self.pl[player].show_card(index)}')
+        self.show_trump()
+        self.print_msg(f'Ходит игрок №{player} {self.pl[player].player_name}, у него меньшая карта '\
+                       f'{self.pl[player].show_card(index)}')
+
         status = self.pl[player].get_current_status(index)
         # player number
         status[0] = player
@@ -2844,20 +2851,21 @@ if __name__ == '__main__':
           f'                      1st step end                            \n' \
           f'--------------------------------------------------------------\n'
     print(msg)
-    reward = None
-    counter = 0
-    while reward is None:
-        counter += 1
-        msg = f'--------------------------------------------------------------\n' \
-              f'                         step start                           \n' \
-              f'--------------------------------------------------------------\n'
-        print(msg)
-        reward = test_agent.play_step(model, epsilon=0.5)
-        msg = f'--------------------------------------------------------------\n' \
-              f'                          step end                            \n' \
-              f'--------------------------------------------------------------\n'
-        print(msg)
-        print(f"Reward turn {counter:02d} {reward}\n")
+    while True:
+        reward = None
+        counter = 0
+        while reward is None:
+            counter += 1
+            # msg = f'--------------------------------------------------------------\n' \
+            #       f'                      step {counter} start                    \n' \
+            #       f'--------------------------------------------------------------\n'
+            # print(msg)
+            reward = test_agent.play_step(model, epsilon=0.99)
+            # msg = f'--------------------------------------------------------------\n' \
+            #       f'                      step {counter} end                      \n' \
+            #       f'--------------------------------------------------------------\n'
+            # print(msg)
+            # print(f"Reward turn {counter:02d} {reward}\n")
 
     """
     players_num = 4
