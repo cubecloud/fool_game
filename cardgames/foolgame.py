@@ -26,9 +26,7 @@ from tensorflow.keras import layers
 # from tensorflow.keras.layers import BatchNormalization
 # from tensorflow.keras.optimizers import RMSprop, Adam, SGD, RMSprop
 
-__version__ = "0.01.94"
-
-Experience = collections.namedtuple('Experience', field_names=['state', 'action', 'reward', 'done', 'next_state'])
+__version__ = "0.01.96"
 
 
 def q_model_conv(in_shape=(37, 25,), num_actions=37):
@@ -57,6 +55,7 @@ def q_model_dense(in_shape=(37, 25,), num_actions=37):
     action = layers.Dense(num_actions, activation="linear", kernel_initializer=initializer)(layer2)
     return tensorflow.keras.Model(inputs=inputs, outputs=action)
 
+Experience = collections.namedtuple('Experience', field_names=['state', 'action', 'reward', 'done', 'next_state'])
 
 class ExperienceReplay:
     def __init__(self, capacity):
@@ -217,8 +216,9 @@ class Deck:
         return self.change_card_weight(index, self.get_card_weight(index) + add_weight)
 
     def what_suit(self, index: int) -> str:
-        suit_char_index = self.player_deck[index][0]
-        return self.suit_chars[suit_char_index]
+        card = self.player_deck[index]
+        suit_char_index = card[0]
+        return self.suit_chars.get(suit_char_index)
 
     def what_rank(self, index):
         return self.player_deck[index][1]
@@ -376,19 +376,19 @@ class Player(Deck):
             Normalize card graveyard status (zero or 1)
             do not need normalization
             '''
-            card_state.append(card_value[4])
+            card_state.append(float(card_value[4]))
             # card_state[4] = card_value[4]
             '''
             Last action card status (True or False)     
             '''
-            card_state.append(card_value[5])
+            card_state.append(float(card_value[5]))
 
             '''                                     
             # Normalize card weight (max card_weight=34)
             Normalize card weight (max card_weight=18)
             '''
             # card_state.extend(self.convert_2ohe(card_value[6], 34, min_value=0))
-            card_state.append(card_value[6] / 18)
+            card_state.append(float(card_value[6] / 18))
             # state.append(copy.deepcopy(card_state))
             state.append(card_state)
             card_state: list = []
@@ -1375,8 +1375,9 @@ class Table:
     def show_first_turn_card(self):
         player, index = self.first_turn_choice()
         self.player_turn = player
-        self.print_msg(f'Ходит игрок №{player} {self.pl[player].player_name}, у него меньшая карта ' \
-                       f'{self.pl[player].show_card(index)}')
+        if self.verbose:
+            print(f'Ходит игрок №{player} {self.pl[player].player_name}, у него меньшая карта '\
+                  f'{self.pl[player].show_card(index)}')
         status = self.pl[player].get_current_status(index)
         # player number
         status[0] = player
@@ -2821,7 +2822,7 @@ if __name__ == '__main__':
     #         break
     #     except (TypeError, ValueError):
     #         print("Неправильный ввод")
-    players_num = 4
+    players_num = 2
     model = q_model_conv(in_shape=(37, 21 + players_num,), num_actions=37)
     model.compile(optimizer=tf.keras.optimizers.Adam(), loss=tf.keras.losses.MSE)
 
