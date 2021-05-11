@@ -28,7 +28,7 @@ from tensorflow.keras import layers
 # from tensorflow.keras.layers import BatchNormalization
 # from tensorflow.keras.optimizers import RMSprop, Adam, SGD, RMSprop
 
-__version__ = "0.02.00"
+__version__ = "0.02.01"
 
 
 def q_model_conv(in_shape=(37, 25,), num_actions=37):
@@ -294,6 +294,7 @@ class Player(Deck):
         self.episode_experience: list = []
         self.episode_buffer: list = []
         self.game_reward: float = 0
+        self.turn_reward = 0
         '''
         Zero reward - should be added at the end of episode
         float type
@@ -2322,7 +2323,7 @@ class Environment(Table):
             self.add_card_2desktop(self.result, self.action, self.current_player_id)
             self.pl[self.current_player_id].add_attack_status(self.result)
             self.pl[self.current_player_id].player_cards_onhand_list.remove(self.result)
-
+            self.pl[self.current_player_id].turn_reward = 0.03
             ''' Save data about turn experience, with action_idx (self.result) '''
             # if self.pl[self.current_player_id].player_type == 'AI':
             self.pl[self.current_player_id].add_turn_experience(self.result)
@@ -2347,6 +2348,7 @@ class Environment(Table):
             return
         elif self.result == 0:
             ''' if only 2 players and the player action is pass (self.result == 0) '''
+            self.pl[self.current_player_id].turn_reward = 0.01
             if self.players_number == 2:
                 # Карты уходят в сброс того что входит
                 self.print_msg(
@@ -2359,7 +2361,6 @@ class Environment(Table):
                 ''' Save data about turn experience, with action_idx (self.result) '''
                 # if self.pl[self.current_player_id].player_type == 'AI':
                 self.pl[self.current_player_id].add_turn_experience(self.result)
-
                 # Переход хода
                 self.next_turn()
                 if self.check_end_of_game():
@@ -2417,6 +2418,7 @@ class Environment(Table):
             # print(self.pl[player_number].player_cards_onhand_list, result)
             self.pl[self.current_player_id].player_cards_onhand_list.remove(self.result)
             self.add_card_2desktop(self.result, self.action, self.current_player_id)
+            self.pl[self.current_player_id].turn_reward = 0.02
 
             ''' Save data about turn experience, with action_idx (self.result) '''
             # if self.pl[self.current_player_id].player_type == 'AI':
@@ -2480,6 +2482,7 @@ class Environment(Table):
                 f'{self.pl[self.current_player_id].player_name} забирает '
                 f'{self.pl[self.current_player_id].show_cards_hor(self.desktop_list)}')
 
+            self.pl[self.current_player_id].turn_reward = -0.01 * len(self.desktop_list)
             ''' Мы забрали карты со стола '''
             self.add_cardslist_2player_hand(self.current_player_id, self.desktop_list)
 
@@ -2529,6 +2532,7 @@ class Environment(Table):
 
     def current_player_passive_action(self) -> None:
         if self.result > 0:
+            self.pl[self.current_player_id].turn_reward = 0.03
             '''
             выставляем флаг, что _не_ пасуем
             если атакующий игрок пасует и на столе меньше 11 (то есть 10) карт
@@ -2555,6 +2559,7 @@ class Environment(Table):
             # self.if_human_pause(player_number)
             return
         elif self.result == 0:
+            self.pl[self.current_player_id].turn_reward = 0.01
             ''' Save data about turn experience, with action_idx (self.result) '''
             # if self.pl[self.current_player_id].player_type == 'AI':
             self.pl[self.current_player_id].add_turn_experience(self.result)
@@ -2668,7 +2673,7 @@ class Environment(Table):
                 if self.queue_to_get_dummy_action_idx():
                     turn_state = self.pl[self.current_player_id].convert_deck_2state()
                     # print(turn_state.shape)
-                    turn_reward = .0
+                    turn_reward = self.pl[self.current_player_id].turn_reward
                     if self.episode_players_ranks:
                         if self.current_player_id in self.episode_players_ranks:
                             self.game_circle = False
@@ -2677,7 +2682,7 @@ class Environment(Table):
                     info = {'action_external': dummy_player_action,
                             'turn_reward': turn_reward,
                             'is_done': is_done,
-                            'players_ranks': self.episode_players_ranks
+                            'players_ranks': self.episode_players_ranks,
                             }
                     return turn_state, turn_reward, is_done, info
                 ''' Main attack action '''
@@ -2691,7 +2696,7 @@ class Environment(Table):
                         if self.queue_to_get_dummy_action_idx():
                             turn_state = self.pl[self.current_player_id].convert_deck_2state()
                             # print(turn_state.shape)
-                            turn_reward = .0
+                            turn_reward = self.pl[self.current_player_id].turn_reward
                             if self.episode_players_ranks:
                                 if self.current_player_id in self.episode_players_ranks:
                                     self.game_circle = False
@@ -2700,7 +2705,7 @@ class Environment(Table):
                             info = {'action_external': dummy_player_action,
                                     'turn_reward': turn_reward,
                                     'is_done': is_done,
-                                    'players_ranks': self.episode_players_ranks
+                                    'players_ranks': self.episode_players_ranks,
                                     }
                             return turn_state, turn_reward, is_done, info
                         ''' Main defend action '''
@@ -2722,7 +2727,7 @@ class Environment(Table):
                     if self.queue_to_get_dummy_action_idx():
                         turn_state = self.pl[self.current_player_id].convert_deck_2state()
                         # print(turn_state.shape)
-                        turn_reward = .0
+                        turn_reward = self.pl[self.current_player_id].turn_reward
                         if self.episode_players_ranks:
                             if self.current_player_id in self.episode_players_ranks:
                                 self.game_circle = False
@@ -2731,7 +2736,7 @@ class Environment(Table):
                         info = {'action_external': dummy_player_action,
                                 'turn_reward': turn_reward,
                                 'is_done': is_done,
-                                'players_ranks': self.episode_players_ranks
+                                'players_ranks': self.episode_players_ranks,
                                 }
                         return turn_state, turn_reward, is_done, info
                     ''' Main passive action '''
