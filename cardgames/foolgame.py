@@ -28,7 +28,7 @@ from tensorflow.keras import layers
 # from tensorflow.keras.layers import BatchNormalization
 # from tensorflow.keras.optimizers import RMSprop, Adam, SGD, RMSprop
 
-__version__ = "0.01.99"
+__version__ = "0.02.00"
 
 
 def q_model_conv(in_shape=(37, 25,), num_actions=37):
@@ -1104,7 +1104,7 @@ class DummyPlayer(Player):
             self.action == 'Passive':
             """
             valid_card_list = self.passive_attacking()
-        return np.array(valid_card_list)
+        return np.array(valid_card_list, dtype=np.uint8)
 
     pass
 
@@ -2856,16 +2856,16 @@ if __name__ == '__main__':
         counter = 0
         while reward is None:
             counter += 1
-            # msg = f'--------------------------------------------------------------\n' \
-            #       f'                      step {counter} start                    \n' \
-            #       f'--------------------------------------------------------------\n'
-            # print(msg)
+            msg = f'--------------------------------------------------------------\n' \
+                  f'                      step {counter} start                    \n' \
+                  f'--------------------------------------------------------------\n'
+            print(msg)
             reward = test_agent.play_step(model, epsilon=0.99)
-            # msg = f'--------------------------------------------------------------\n' \
-            #       f'                      step {counter} end                      \n' \
-            #       f'--------------------------------------------------------------\n'
-            # print(msg)
-            # print(f"Reward turn {counter:02d} {reward}\n")
+            msg = f'--------------------------------------------------------------\n' \
+                  f'                      step {counter} end                      \n' \
+                  f'--------------------------------------------------------------\n'
+            print(msg)
+            print(f"Reward turn {counter:02d} {reward}\n")
 
     """
     players_num = 4
