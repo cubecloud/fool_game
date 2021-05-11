@@ -28,7 +28,7 @@ from tensorflow.keras import layers
 # from tensorflow.keras.layers import BatchNormalization
 # from tensorflow.keras.optimizers import RMSprop, Adam, SGD, RMSprop
 
-__version__ = "0.01.97"
+__version__ = "0.01.98"
 
 
 def q_model_conv(in_shape=(37, 25,), num_actions=37):
@@ -477,7 +477,7 @@ class Player(Deck):
         self.player_turn = turn
         pass
 
-    def add_graveyard_status(self, index):
+    def add_graveyard_status(self, index: int):
         """
         Change card status to graveyard
         # card status self.player_deck[index][2:6]
@@ -506,7 +506,7 @@ class Player(Deck):
         status[3] = 0
         pass
 
-    def add_attack_status(self, index):
+    def add_attack_status(self, index: int):
         status = self.get_current_status(index)
         # player number
         status[0] = self.player_number
@@ -519,7 +519,7 @@ class Player(Deck):
         self.change_card_status(index, status)
         pass
 
-    def add_player_status(self, index):
+    def add_player_status(self, index: int):
         status = self.get_current_status(index)
         # player number
         status[0] = self.player_number
@@ -528,7 +528,7 @@ class Player(Deck):
         self.change_card_status(index, status)
         pass
 
-    def add_defending_status(self, index):
+    def add_defending_status(self, index: int):
         status = self.get_current_status(index)
         # player number
         status[0] = self.player_number
@@ -1104,7 +1104,7 @@ class DummyPlayer(Player):
             self.action == 'Passive':
             """
             valid_card_list = self.passive_attacking()
-        return valid_card_list
+        return np.array(valid_card_list)
 
     pass
 
