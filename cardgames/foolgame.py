@@ -28,7 +28,7 @@ from tensorflow.keras import layers
 # from tensorflow.keras.layers import BatchNormalization
 # from tensorflow.keras.optimizers import RMSprop, Adam, SGD, RMSprop
 
-__version__ = "0.01.98"
+__version__ = "0.01.99"
 
 
 def q_model_conv(in_shape=(37, 25,), num_actions=37):
@@ -1142,7 +1142,7 @@ class Table:
         self.first_discard = True
         self.game_circle = True
         self.verbose = False
-        self.rank_rewards_lst = list(np.linspace(1.0, 0.0, num=self.players_qty))
+        self.rank_rewards_lst = list(np.linspace(1.0, -1.0, num=self.players_qty))
         pass
 
     def print_msg(self, msg: str) -> None:
