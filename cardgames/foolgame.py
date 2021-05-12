@@ -28,26 +28,26 @@ from tensorflow.keras import layers
 # from tensorflow.keras.layers import BatchNormalization
 # from tensorflow.keras.optimizers import RMSprop, Adam, SGD, RMSprop
 
-__version__ = "0.02.06"
+__version__ = "0.02.08"
 
 
-def q_model_conv(in_shape=(37, 25,), num_actions=37):
-    # initializer = tf.keras.initializers.RandomUniform(minval=0., maxval=0.05)
-    initializer = tf.keras.initializers.GlorotUniform()
-    inputs = layers.Input(shape=in_shape)
-    # Convolutions on the player deck state
-    layer1 = layers.Conv1D(32, 8, strides=4, activation="relu", kernel_initializer=initializer)(inputs)
-    layer2 = layers.Conv1D(64, 4, strides=2, activation="relu", kernel_initializer=initializer)(layer1)
-    layer3 = layers.Conv1D(64, 3, strides=1, activation="relu", kernel_initializer=initializer)(layer2)
+# def q_model_conv(in_shape=(37, 25,), num_actions=37):
+#     # initializer = tf.keras.initializers.RandomUniform(minval=0., maxval=0.05)
+#     initializer = tf.keras.initializers.GlorotUniform()
+#     inputs = layers.Input(shape=in_shape)
+#     # Convolutions on the player deck state
+#     layer1 = layers.Conv1D(32, 8, strides=4, activation="relu", kernel_initializer=initializer)(inputs)
+#     layer2 = layers.Conv1D(64, 4, strides=2, activation="relu", kernel_initializer=initializer)(layer1)
+#     layer3 = layers.Conv1D(64, 3, strides=1, activation="relu", kernel_initializer=initializer)(layer2)
+#
+#     layer4 = layers.Flatten()(layer3)
+#
+#     layer5 = layers.Dense(512, activation="relu", kernel_initializer=initializer)(layer4)
+#     action = layers.Dense(num_actions, activation="linear", kernel_initializer=initializer)(layer5)
+#     return tensorflow.keras.Model(inputs=inputs, outputs=action)
 
-    layer4 = layers.Flatten()(layer3)
 
-    layer5 = layers.Dense(512, activation="relu", kernel_initializer=initializer)(layer4)
-    action = layers.Dense(num_actions, activation="linear", kernel_initializer=initializer)(layer5)
-    return tensorflow.keras.Model(inputs=inputs, outputs=action)
-
-
-def q_model_dense(in_shape=(37, 25,), num_actions=37):
+def q_model_dense(in_shape=(297,), num_actions=37):
     # initializer = tf.keras.initializers.RandomUniform(minval=0., maxval=0.05)
     initializer = tf.keras.initializers.GlorotUniform()
     inputs = layers.Input(shape=in_shape)
@@ -304,6 +304,11 @@ class Player(Deck):
         self.game_reward: float = 0
         self.turn_reward = 0
         self.turn_valid_actions: list = []
+        self.action_encode = { None: 0,
+                              'Attack': 1,
+                              'Defend': 2,
+                              'Passive': 3,
+                              }
         '''
         Zero reward - should be added at the end of episode
         float type
@@ -354,8 +359,7 @@ class Player(Deck):
         '''
         Add Zero action_idx to states (pass)
         '''
-        state.append(list(card_state))
-        state[0] = list(np.zeros(shape=(8), dtype=np.float32))
+        state.extend(list(np.zeros(shape=(8), dtype=float)))
         player_deck = copy.deepcopy(self.player_deck)
         for ix, card_value in enumerate(player_deck.values()):
             # if self.debug_verbose > 1:
@@ -382,7 +386,7 @@ class Player(Deck):
             card_property_of = self.convert_card_property(card_value[2])
             # card_property_of_ohe = self.convert_2ohe(card_property_of, self.players_number + 1, min_value=0)
             # card_state.extend(card_property_of_ohe)
-            card_state.append(card_property_of)
+            card_state.append(float(card_property_of))
             # card_state[2] = card_value[2] / self.players_number
             '''
             ohe card status (possible statuses = 4 (0 NOT included))
@@ -411,8 +415,9 @@ class Player(Deck):
             # card_state.append(float(card_value[6] / 18))
             card_state.append(float(card_value[6]))
             # state.append(copy.deepcopy(card_state))
-            state.append(card_state)
+            state.extend(card_state)
             card_state: list = []
+        state.append(float(self.action_encode[self.action]))
         return np.array(state, dtype=np.float32)
 
     def add_turn_experience(self, action_idx) -> None:
@@ -2094,7 +2099,7 @@ class Environment(Table):
         self.verbose = False
         self.train_process = True
 
-        self.epsilon = 0.0
+        self.epsilon = 0.99
         self.optimizer = tf.keras.optimizers.Adam(learning_rate=0.00025)
         # self.loss_funct = tf.keras.losses.Huber()
         self.loss_funct = tf.keras.losses.MSE
@@ -2102,6 +2107,7 @@ class Environment(Table):
         if self.nnmodel is not None:
             self.init_nnmodel()
         self.turn_done = False
+        pass
 
     def init_nnmodel(self):
         if not self.compiled_status:
@@ -2656,11 +2662,13 @@ class Environment(Table):
 
     def step(self,
              dummy_player_action,
-             first_step=False):
+             first_step=False,
+             step_epsilon=.99):
         self.dummy_player_action = dummy_player_action
         self.step_not_done = True
         self.first_step = first_step
         self.have_hit = False
+        self.epsilon = step_epsilon
 
         while self.game_circle and self.step_not_done:
             if (len(self.desktop_list) == 12) or \
@@ -2688,8 +2696,10 @@ class Environment(Table):
             '''
             self.show_all_cards(self.current_player_id)
             self.action = self.take_action(self.current_player_id)
+            self.pl[self.current_player_id].epsilon = step_epsilon
 
             if self.action == 'Attack':
+
                 if self.queue_to_get_dummy_action_idx():
                     turn_state = self.pl[self.current_player_id].convert_deck_2state()
                     # print(turn_state.shape)
@@ -2827,10 +2837,10 @@ class Agent:
         #     print(msg)
         return action
 
-    def play_step(self, nnmodel, epsilon=0.0):
+    def play_step(self, nnmodel, epsilon=0.99):
         done_reward = None
         step_valid_actions = self.env.pl[self.observer_player].analyze()
-        # msg_before = f"Before valid actions list {valid_action_lst}"
+         # msg_before = f"Before valid actions list {valid_action_lst}"
         if np.random.random() < epsilon:
             action = random.choice(step_valid_actions)
         else:
@@ -2864,7 +2874,7 @@ class Agent:
             #     msg = f'Correct action {action} in {step_valid_actions}'
             #     print(msg)
 
-        new_state, reward, is_done, info = self.env.step(action)
+        new_state, reward, is_done, info = self.env.step(action, step_epsilon=epsilon)
         if self.verbose:
             print("Last action", action)
             print("Step reward", reward)
@@ -2904,7 +2914,7 @@ if __name__ == '__main__':
     weights_name = f"fool_cardgame_weights_2500.h5"
     weights_file_path = os.path.join(HOME, weights_name)
     players_num = 2
-    model = q_model_dense(in_shape=(37, 8 ), num_actions=37)
+    model = q_model_dense(in_shape=(297, ), num_actions=37)
     model.compile(optimizer=tf.keras.optimizers.Adam(), loss=tf.keras.losses.MSE)
     # model.load_weights(weights_file_path)
 
@@ -2926,19 +2936,23 @@ if __name__ == '__main__':
           f'                      1st step end                            \n' \
           f'--------------------------------------------------------------\n'
     print(msg)
-    for _ in range(2):
+    epsilon = 0.99
+    eps_decay = .999985
+    eps_min = 0.02
+
+    for _ in range(10):
         reward = None
         counter = 0
         test_agent.verbose = True
         test_agent.debug_verbose = 2
         while reward is None:
-
+            epsilon = max(epsilon*eps_decay, eps_min)
             counter += 1
             msg = f'--------------------------------------------------------------\n' \
                   f'                      step {counter} start                    \n' \
                   f'--------------------------------------------------------------\n'
             print(msg)
-            reward = test_agent.play_step(model, epsilon=0.99)
+            reward = test_agent.play_step(model, epsilon=epsilon)
             msg = f'--------------------------------------------------------------\n' \
                   f'                      step {counter} end                      \n' \
                   f'--------------------------------------------------------------\n'
