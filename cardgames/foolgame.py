@@ -28,7 +28,7 @@ from tensorflow.keras import layers
 # from tensorflow.keras.layers import BatchNormalization
 # from tensorflow.keras.optimizers import RMSprop, Adam, SGD, RMSprop
 
-__version__ = "0.02.03"
+__version__ = "0.02.05"
 
 
 def q_model_conv(in_shape=(37, 25,), num_actions=37):
@@ -58,7 +58,7 @@ def q_model_dense(in_shape=(37, 25,), num_actions=37):
     return tensorflow.keras.Model(inputs=inputs, outputs=action)
 
 
-Experience = collections.namedtuple('Experience', field_names=['state', 'action', 'reward', 'done', 'next_state'])
+Experience = collections.namedtuple('Experience', field_names=['state', 'action', 'valid_action_lst','reward', 'done', 'next_state'])
 
 
 class ExperienceReplay:
@@ -87,15 +87,23 @@ class ExperienceReplay:
 
     def show(self):
         buffer_length = self.get_length()
-        states, actions, rewards, dones, next_states = zip(*[self.buffer[idx] for idx in range(buffer_length)])
-        return (np.array(states), np.array(actions), np.array(rewards, dtype=np.float32),
-                np.array(dones, dtype=np.uint8), np.array(next_states))
+        states, actions, valid_actions_lst, rewards, dones, next_states = zip(*[self.buffer[idx] for idx in range(buffer_length)])
+        return (np.array(states, dtype=np.float32),
+                np.array(actions, dtype=np.uint8),
+                np.array(valid_actions_lst),
+                np.array(rewards, dtype=np.float32),
+                np.array(dones, dtype=np.uint8),
+                np.array(next_states, dtype=np.float32))
 
     def sample(self, batch_size):
         indices = np.random.choice(len(self.buffer), batch_size, replace=False)
-        states, actions, rewards, dones, next_states = zip(*[self.buffer[idx] for idx in indices])
-        return (np.array(states), np.array(actions), np.array(rewards, dtype=np.float32),
-                np.array(dones, dtype=np.uint8), np.array(next_states))
+        states, actions, valid_actions_lst, rewards, dones, next_states = zip(*[self.buffer[idx] for idx in indices])
+        return (np.array(states, dtype=np.float32),
+                np.array(actions, dtype=np.uint8),
+                np.array(valid_actions_lst),
+                np.array(rewards, dtype=np.float32),
+                np.array(dones, dtype=np.uint8),
+                np.array(next_states, dtype=np.float32))
 
     def save(self, file_path, buffer_length=10000):
         len_buffer = len(self.buffer)
@@ -107,21 +115,21 @@ class ExperienceReplay:
                 buffer_length = len_buffer
             else:
                 buffer_length = len_buffer
-            states, actions, rewards, dones, next_states = \
+            states, actions, valid_actions_lst, rewards, dones, next_states = \
                 zip(*[self.buffer[idx] for idx in range(len(self.buffer) - buffer_length, len(self.buffer))])
-            pkl.dump([states, actions, rewards, dones, next_states], f)
-            del [states, actions, rewards, dones, next_states]
+            pkl.dump([states, actions, valid_actions_lst, rewards, dones, next_states], f)
+            del [states, actions, valid_actions_lst, rewards, dones, next_states]
             pass
 
     def load(self, file_path):
         with open(file_path, "rb") as f:
             print('Loading exp buffer...')
             # self.buffer = pkl.load(f)
-            states, actions, rewards, dones, next_states = pkl.load(f)
-            for state, action, reward, done, next_state in zip(states, actions, rewards, dones, next_states):
-                exp = Experience(state, action, reward, done, next_state)
+            states, actions, valid_actions_lst, rewards, dones, next_states = pkl.load(f)
+            for state, action, valid_action_lst, reward, done, next_state in zip(states, actions, valid_actions_lst, rewards, dones, next_states):
+                exp = Experience(state, action, valid_action_lst, reward, done, next_state)
                 self.buffer.append(exp)
-            del [states, actions, rewards, dones, next_states]
+            del [states, actions, valid_actions_lst, rewards, dones, next_states]
         pass
 
 
@@ -295,6 +303,7 @@ class Player(Deck):
         self.episode_buffer: list = []
         self.game_reward: float = 0
         self.turn_reward = 0
+        self.turn_valid_actions: list = []
         '''
         Zero reward - should be added at the end of episode
         float type
@@ -1052,6 +1061,7 @@ class DummyPlayer(Player):
             None
         """
         super().__init__(player_number, player_type_num, epsilon=epsilon)
+
         pass
 
     def attacking(self) -> list:
@@ -1097,16 +1107,16 @@ class DummyPlayer(Player):
             valid_card_list (list): for action_choose
         """
         if self.action == 'Attack':
-            valid_card_list = self.attacking()
+            self.turn_valid_actions = np.array(self.attacking(), dtype=np.uint8)
         elif self.action == 'Defend':
-            valid_card_list = self.defending()
+            self.turn_valid_actions = np.array(self.defending(), dtype=np.uint8)
         else:
             """
             self.action == 'Passive':
             """
-            valid_card_list = self.passive_attacking()
-        return np.array(valid_card_list, dtype=np.uint8)
+            self.turn_valid_actions = np.array(self.passive_attacking(), dtype=np.uint8)
 
+        return self.turn_valid_actions
     pass
 
 
@@ -2291,9 +2301,9 @@ class Environment(Table):
         else:
             self.continue_series(start_type)
         self.game_idx += 1
-        msg = f'==========================================\n' \
-              f'Игра № {self.game_idx:03d}\n' \
-              f'==========================================\n'
+        msg: str = f'==========================================\n' \
+                   f'Игра № {self.game_idx:03d}\n' \
+                   f'==========================================\n'
         self.print_msg(msg)
         self.play_episode()
         self.__add_report_data()
@@ -2315,7 +2325,6 @@ class Environment(Table):
         #     print(msg)
 
         return self.pl[self.episode_players_ranks[0]].game_reward, self.pl[self.episode_players_ranks[0]].episode_buffer
-
 
     def current_player_attack_action(self) -> None:
         if self.result > 0:
@@ -2685,6 +2694,8 @@ class Environment(Table):
                             'turn_reward': turn_reward,
                             'is_done': is_done,
                             'players_ranks': self.episode_players_ranks,
+                            'player_action': self.action,
+                            'valid_actions': self.pl[self.current_player_id].turn_valid_actions
                             }
                     return turn_state, turn_reward, is_done, info
                 ''' Main attack action '''
@@ -2708,6 +2719,8 @@ class Environment(Table):
                                     'turn_reward': turn_reward,
                                     'is_done': is_done,
                                     'players_ranks': self.episode_players_ranks,
+                                    'player_action': self.action,
+                                    'valid_actions': self.pl[self.current_player_id].turn_valid_actions
                                     }
                             return turn_state, turn_reward, is_done, info
                         ''' Main defend action '''
@@ -2739,6 +2752,8 @@ class Environment(Table):
                                 'turn_reward': turn_reward,
                                 'is_done': is_done,
                                 'players_ranks': self.episode_players_ranks,
+                                'player_action': self.action,
+                                'valid_actions': self.pl[self.current_player_id].turn_valid_actions
                                 }
                         return turn_state, turn_reward, is_done, info
                     ''' Main passive action '''
@@ -2757,7 +2772,9 @@ class Environment(Table):
         info = {'action_external': dummy_player_action,
                 'turn_reward': turn_reward,
                 'is_done': is_done,
-                'players_ranks': self.episode_players_ranks
+                'players_ranks': self.episode_players_ranks,
+                'player_action': self.action,
+                'valid_actions': self.pl[self.observer_player].turn_valid_actions
                 }
         return turn_state, turn_reward, is_done, info
 
@@ -2768,7 +2785,7 @@ class Agent:
         self.observer_player = env.observer_player
         self.exp_buffer = exp_buffer
         self.verbose = True
-        self.debug_verbose = 1
+        self.debug_verbose = 2
         self._reset()
         pass
 
@@ -2778,37 +2795,73 @@ class Agent:
         self.env.verbose = self.verbose
         self.env.debug_verbose = self.debug_verbose
         self.env.step(0, first_step=True)
+        self.running_reward = 10
         pass
+
+    @tf.function
+    def _get_action_from_tf(self, nnmodel, valid_action_tensor):
+
+        q_values = nnmodel(self.state_tensor, training=False)
+        valid_actions_masks = tf.one_hot(valid_action_tensor, self.env.num_actions)
+        valid_actions_masks = tf.squeeze(tf.reduce_sum(valid_actions_masks, axis=0))
+        valid_q_values = tf.expand_dims(tf.reduce_sum(tf.multiply(q_values, valid_actions_masks), axis=0), axis=0)
+        valid_q_values = tf.minimum(valid_q_values, (2 * tf.cast(valid_actions_masks, dtype=tf.float32) - 1) * np.inf)
+        action = tf.argmax(valid_q_values[0])
+        # action = tf.argmax(valid_q_values[0]).numpy()
+        # tf.print(action)
+        # if not (action in valid_action_lst):
+        #     msg = f'Error in action {action} in {valid_action_lst}\nTensor: {valid_q_values}'
+        #     print(msg)
+        #     action = random.choice(valid_action_lst)
+        # else:
+        #     msg = f'Correct action {action} in {valid_action_lst}\nTensor: {valid_q_values}'
+        #     print(msg)
+        return action
 
     def play_step(self, nnmodel, epsilon=0.0):
         done_reward = None
-        valid_action_list = list(self.env.pl[self.observer_player].analyze())
-        msg_before = f"Before valid actions list {valid_action_list}"
+        step_valid_actions = self.env.pl[self.observer_player].analyze()
+        # msg_before = f"Before valid actions list {valid_action_lst}"
         if np.random.random() < epsilon:
-            action = random.choice(valid_action_list)
+            action = random.choice(step_valid_actions)
         else:
             state_a = np.array([self.state], copy=False)
-            state_tensor = tf.convert_to_tensor(state_a)
-            q_values = nnmodel(state_tensor, training=False)
-            # with np.printoptions(precision=3, suppress=True):
-            #     print(q_values.numpy())
-            valid_masks = tf.one_hot(valid_action_list, self.env.num_actions)
-            # with np.printoptions(precision=3, suppress=True):
-            #     print(masks.numpy())
-            valid_q_values = tf.expand_dims(tf.reduce_sum(tf.multiply(q_values, valid_masks), axis=0), 0)
-            # with np.printoptions(precision=3, suppress=True):
-            #     print(valid_q_values.numpy())
-            action = np.argmax(valid_q_values)
-            # print(self.action, action_list, action)
-            if not (action in valid_action_list):
-                action = valid_action_list[0]
+            self.state_tensor = tf.convert_to_tensor(state_a, dtype=tf.float32)
+            step_valid_actions_v = tf.convert_to_tensor(step_valid_actions)
+            action = self._get_action_from_tf(nnmodel, step_valid_actions_v)
+            action = action.numpy()
+            # print(action, step_valid_actions)
+            # state_a = np.array([self.state], copy=False)
+            # state_tensor = tf.convert_to_tensor(state_a)
+            # q_values = nnmodel(state_tensor, training=False)
+            # # with np.printoptions(precision=3, suppress=True):
+            # #     print(q_values.numpy())
+
+            # valid_actions_masks = tf.one_hot(valid_action_lst, self.env.num_actions)
+            # valid_actions_masks = tf.squeeze(tf.reduce_sum(valid_actions_masks, axis=0))
+            # # with np.printoptions(precision=3, suppress=True):
+            # #     print(valid_actions_masks.numpy())
+            # valid_q_values = tf.expand_dims(tf.reduce_sum(tf.multiply(q_values, valid_actions_masks), axis=0), axis=0)
+            # # with np.printoptions(precision=3, suppress=True):
+            # #     print(valid_q_values.numpy())
+            # action = np.argmax(valid_q_values)
+            # # print(self.action, action_list, action)
+
+            # if not (action in step_valid_actions):
+            #     msg = f'Error in action {action} in {step_valid_actions}'
+            #     print(msg)
+            #     action = random.choice(step_valid_actions)
+            # else:
+            #     msg = f'Correct action {action} in {step_valid_actions}'
+            #     print(msg)
+
         new_state, reward, is_done, info = self.env.step(action)
         if self.verbose:
             print("Last action", action)
-            print(msg_before)
+            print("Step reward", reward)
             print(info)
         self.total_reward += reward
-        exp = Experience(self.state, action, reward, is_done, new_state)
+        exp = Experience(self.state, action, step_valid_actions, reward, is_done, new_state)
         self.exp_buffer.append(exp)
         self.state = new_state
         if is_done:
@@ -2836,9 +2889,15 @@ if __name__ == '__main__':
     #         break
     #     except (TypeError, ValueError):
     #         print("Неправильный ввод")
+    import os
+
+    HOME = "/home/cubecloud/GDrive/Python/fool_game/data/"
+    weights_name = f"fool_cardgame_weights_2500.h5"
+    weights_file_path = os.path.join(HOME, weights_name)
     players_num = 2
-    model = q_model_conv(in_shape=(37, 21 + players_num,), num_actions=37)
+    model = q_model_dense(in_shape=(37, 21 + players_num,), num_actions=37)
     model.compile(optimizer=tf.keras.optimizers.Adam(), loss=tf.keras.losses.MSE)
+    model.load_weights(weights_file_path)
 
     buffer = ExperienceReplay(20000)
 
@@ -2846,6 +2905,7 @@ if __name__ == '__main__':
                               env_type="dummy",
                               observer_player=1,
                               nnmodel=model)
+    environment.verbose = True
 
     msg = f'--------------------------------------------------------------\n' \
           f'                      1st step start                          \n' \
@@ -2853,15 +2913,17 @@ if __name__ == '__main__':
     print(msg)
     test_agent = Agent(environment,
                        exp_buffer=buffer)
-
     msg = f'--------------------------------------------------------------\n' \
           f'                      1st step end                            \n' \
           f'--------------------------------------------------------------\n'
     print(msg)
-    while True:
+    for _ in range(2):
         reward = None
         counter = 0
+        test_agent.verbose = True
+        test_agent.debug_verbose = 2
         while reward is None:
+
             counter += 1
             msg = f'--------------------------------------------------------------\n' \
                   f'                      step {counter} start                    \n' \
@@ -2874,44 +2936,3 @@ if __name__ == '__main__':
             print(msg)
             print(f"Reward turn {counter:02d} {reward}\n")
 
-    """
-    players_num = 4
-    model = q_model_conv(in_shape=(37, 21 + players_num,), num_actions=37)
-    # model = DQNDense(input_shape=(37, 21 + players_num,), output_shape=37)
-
-    fool_game = Environment(players_num,
-                            env_type="1ai-computer",
-                            nnmodel=model)
-    fool_game.verbose = True
-    fool_game.debug_verbose = True
-    # fool_game.play_series(start_type='next')
-    count = 0
-    total_count = 0
-    fool_game.prepare_new_game()
-    # while fool_game.game_circle or not fool_game.turn_done:
-    # fool_game.play_step(observer_player=2)
-    ai_repeat = 'new'
-    while count < 1:
-        # if ai_repeat == 'new':
-        # fool_game.prepare_new_game()
-        fool_game.first_game = True
-        fool_game.reset()
-        # print(ai_repeat)
-        fool_game.verbose = True
-        reward, episode_buffer = fool_game.train_episode_AI(start_type=ai_repeat, nnmodel=model, epsilon=.99)
-        # if reward != 0:
-        #     if reward != 1.0:
-        #       ai_repeat = 'same'
-        #     else:
-        #       ai_repeat = 'new'
-        # else:
-        #     ai_repeat = 'same'
-        print(fool_game.episode_players_ranks)
-        print(f'Reward: {reward}, Episode buffer length: {len(episode_buffer)}')
-        # if reward != 0:
-        count += 1
-        #     print(f'Counted: {count}/{total_count}')
-        # total_count += 1
-
-    # fool_game.train_episode_AI(start_type='next', epsilon=.5)
-    """
