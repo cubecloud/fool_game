@@ -28,7 +28,7 @@ from tensorflow.keras import layers
 # from tensorflow.keras.layers import BatchNormalization
 # from tensorflow.keras.optimizers import RMSprop, Adam, SGD, RMSprop
 
-__version__ = "0.02.05"
+__version__ = "0.02.06"
 
 
 def q_model_conv(in_shape=(37, 25,), num_actions=37):
@@ -355,34 +355,42 @@ class Player(Deck):
         Add Zero action_idx to states (pass)
         '''
         state.append(list(card_state))
-        state[0] = list(np.zeros(shape=(21 + self.players_number), dtype=np.float32))
+        state[0] = list(np.zeros(shape=(8), dtype=np.float32))
         player_deck = copy.deepcopy(self.player_deck)
         for ix, card_value in enumerate(player_deck.values()):
             # if self.debug_verbose > 1:
             #     print(ix+1, card_value)
             '''
+            add card index
+            '''
+            card_state.append(float(ix))
+            '''
             ohe suits data - 4 suits
             '''
-            card_state.extend(self.convert_2ohe(card_value[0], 4))
+            card_state.append(float(card_value[0]))
+            # card_state.extend(self.convert_2ohe(card_value[0], 4))
             '''
             ohe rank of card data (9 cards)
             '''
-            card_state.extend(self.convert_2ohe(card_value[1], 9))
+            # card_state.extend(self.convert_2ohe(card_value[1], 9))
+            card_state.append(float(card_value[1]))
             '''
             ohe card as property of player (self.players_number)
             zero is property of deck
             # Normalize card as property of player (self.players_number)
             '''
             card_property_of = self.convert_card_property(card_value[2])
-            card_property_of_ohe = self.convert_2ohe(card_property_of, self.players_number + 1, min_value=0)
-            card_state.extend(card_property_of_ohe)
+            # card_property_of_ohe = self.convert_2ohe(card_property_of, self.players_number + 1, min_value=0)
+            # card_state.extend(card_property_of_ohe)
+            card_state.append(card_property_of)
             # card_state[2] = card_value[2] / self.players_number
             '''
             ohe card status (possible statuses = 4 (0 NOT included))
             # ohe card status (possible statuses = 5 (0 included))
             # Normalize card status (possible statuses = 4 (0 not included))
             '''
-            card_state.extend(self.convert_2ohe(card_value[3], 4))
+            # card_state.extend(self.convert_2ohe(card_value[3], 4))
+            card_state.append(float(card_value[3]))
             # card_state[3] = card_value[3] / 4
             '''                    
             Normalize card graveyard status (zero or 1)
@@ -400,7 +408,8 @@ class Player(Deck):
             Normalize card weight (max card_weight=18)
             '''
             # card_state.extend(self.convert_2ohe(card_value[6], 34, min_value=0))
-            card_state.append(float(card_value[6] / 18))
+            # card_state.append(float(card_value[6] / 18))
+            card_state.append(float(card_value[6]))
             # state.append(copy.deepcopy(card_state))
             state.append(card_state)
             card_state: list = []
@@ -2895,9 +2904,9 @@ if __name__ == '__main__':
     weights_name = f"fool_cardgame_weights_2500.h5"
     weights_file_path = os.path.join(HOME, weights_name)
     players_num = 2
-    model = q_model_dense(in_shape=(37, 21 + players_num,), num_actions=37)
+    model = q_model_dense(in_shape=(37, 8 ), num_actions=37)
     model.compile(optimizer=tf.keras.optimizers.Adam(), loss=tf.keras.losses.MSE)
-    model.load_weights(weights_file_path)
+    # model.load_weights(weights_file_path)
 
     buffer = ExperienceReplay(20000)
 
