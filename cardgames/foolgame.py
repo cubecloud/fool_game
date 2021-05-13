@@ -28,7 +28,7 @@ from tensorflow.keras import layers
 # from tensorflow.keras.layers import BatchNormalization
 # from tensorflow.keras.optimizers import RMSprop, Adam, SGD, RMSprop
 
-__version__ = "0.02.09"
+__version__ = "0.02.11"
 
 
 # def q_model_conv(in_shape=(37, 25,), num_actions=37):
@@ -2445,7 +2445,7 @@ class Environment(Table):
             self.pl[self.current_player_id].player_cards_onhand_list.remove(self.result)
             self.add_card_2desktop(self.result, self.action, self.current_player_id)
             # ''' Add reward of action '''
-            self.pl[self.current_player_id].turn_reward = 0.005
+            # self.pl[self.current_player_id].turn_reward = 0.005
 
             ''' Save data about turn experience, with action_idx (self.result) '''
             # if self.pl[self.current_player_id].player_type == 'AI':
@@ -2923,7 +2923,7 @@ if __name__ == '__main__':
     weights_name = f"fool_cardgame_weights_2500.h5"
     weights_file_path = os.path.join(HOME, weights_name)
     players_num = 2
-    model = q_model_dense(in_shape=(261, ), num_actions=37)
+    model = q_model_dense(in_shape=(297, ), num_actions=37)
     model.compile(optimizer=tf.keras.optimizers.Adam(), loss=tf.keras.losses.MSE)
     # model.load_weights(weights_file_path)
 
