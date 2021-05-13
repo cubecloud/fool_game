@@ -28,7 +28,7 @@ from tensorflow.keras import layers
 # from tensorflow.keras.layers import BatchNormalization
 # from tensorflow.keras.optimizers import RMSprop, Adam, SGD, RMSprop
 
-__version__ = "0.02.08"
+__version__ = "0.02.09"
 
 
 # def q_model_conv(in_shape=(37, 25,), num_actions=37):
@@ -2347,7 +2347,8 @@ class Environment(Table):
             self.add_card_2desktop(self.result, self.action, self.current_player_id)
             self.pl[self.current_player_id].add_attack_status(self.result)
             self.pl[self.current_player_id].player_cards_onhand_list.remove(self.result)
-            self.pl[self.current_player_id].turn_reward = 0.005
+            ''' Add reward of action '''
+            # self.pl[self.current_player_id].turn_reward = 0.005
             ''' Save data about turn experience, with action_idx (self.result) '''
             # if self.pl[self.current_player_id].player_type == 'AI':
             self.pl[self.current_player_id].add_turn_experience(self.result)
@@ -2372,7 +2373,8 @@ class Environment(Table):
             return
         elif self.result == 0:
             ''' if only 2 players and the player action is pass (self.result == 0) '''
-            self.pl[self.current_player_id].turn_reward = 0.001
+            ''' Add reward of action '''
+            # self.pl[self.current_player_id].turn_reward = 0.001
             if self.players_number == 2:
                 # Карты уходят в сброс того что входит
                 self.print_msg(
@@ -2442,6 +2444,7 @@ class Environment(Table):
             # print(self.pl[player_number].player_cards_onhand_list, result)
             self.pl[self.current_player_id].player_cards_onhand_list.remove(self.result)
             self.add_card_2desktop(self.result, self.action, self.current_player_id)
+            # ''' Add reward of action '''
             self.pl[self.current_player_id].turn_reward = 0.005
 
             ''' Save data about turn experience, with action_idx (self.result) '''
@@ -2506,9 +2509,13 @@ class Environment(Table):
                 f'{self.pl[self.current_player_id].player_name} забирает '
                 f'{self.pl[self.current_player_id].show_cards_hor(self.desktop_list)}')
 
-            ''' Returns back all card and penalty for every card player get '''
-            self.pl[self.current_player_id].turn_reward = \
-                -0.005 * (len(self.desktop_list)-1)/2 + -0.001 * ((len(self.desktop_list)-1)/2+1)
+            ''' 
+            Add reward of action
+            Returns back all card and penalty for every card player get 
+            '''
+            # self.pl[self.current_player_id].turn_reward = \
+            #     -0.005 * (len(self.desktop_list)-1)/2 + -0.001 * ((len(self.desktop_list)-1)/2+1)
+
             ''' Мы забрали карты со стола '''
             self.add_cardslist_2player_hand(self.current_player_id, self.desktop_list)
 
@@ -2558,7 +2565,8 @@ class Environment(Table):
 
     def current_player_passive_action(self) -> None:
         if self.result > 0:
-            self.pl[self.current_player_id].turn_reward = 0.003
+            ''' Add reward of action '''
+            # self.pl[self.current_player_id].turn_reward = 0.005
             '''
             выставляем флаг, что _не_ пасуем
             если атакующий игрок пасует и на столе меньше 11 (то есть 10) карт
@@ -2585,7 +2593,8 @@ class Environment(Table):
             # self.if_human_pause(player_number)
             return
         elif self.result == 0:
-            self.pl[self.current_player_id].turn_reward = 0.001
+            ''' Add reward of action '''
+            # self.pl[self.current_player_id].turn_reward = 0.001
             ''' Save data about turn experience, with action_idx (self.result) '''
             # if self.pl[self.current_player_id].player_type == 'AI':
             self.pl[self.current_player_id].add_turn_experience(self.result)
@@ -2914,7 +2923,7 @@ if __name__ == '__main__':
     weights_name = f"fool_cardgame_weights_2500.h5"
     weights_file_path = os.path.join(HOME, weights_name)
     players_num = 2
-    model = q_model_dense(in_shape=(297, ), num_actions=37)
+    model = q_model_dense(in_shape=(261, ), num_actions=37)
     model.compile(optimizer=tf.keras.optimizers.Adam(), loss=tf.keras.losses.MSE)
     # model.load_weights(weights_file_path)
 
