@@ -28,7 +28,7 @@ from tensorflow.keras import layers
 # from tensorflow.keras.layers import BatchNormalization
 # from tensorflow.keras.optimizers import RMSprop, Adam, SGD, RMSprop
 
-__version__ = "0.02.11"
+__version__ = "0.02.12"
 
 
 # def q_model_conv(in_shape=(37, 25,), num_actions=37):
@@ -359,7 +359,7 @@ class Player(Deck):
         '''
         Add Zero action_idx to states (pass)
         '''
-        state.extend(list(np.zeros(shape=(8), dtype=float)))
+        # state.extend(list(np.zeros(shape=(8), dtype=float)))
         player_deck = copy.deepcopy(self.player_deck)
         for ix, card_value in enumerate(player_deck.values()):
             # if self.debug_verbose > 1:
@@ -2923,7 +2923,7 @@ if __name__ == '__main__':
     weights_name = f"fool_cardgame_weights_2500.h5"
     weights_file_path = os.path.join(HOME, weights_name)
     players_num = 2
-    model = q_model_dense(in_shape=(297, ), num_actions=37)
+    model = q_model_dense(in_shape=(289, ), num_actions=37)
     model.compile(optimizer=tf.keras.optimizers.Adam(), loss=tf.keras.losses.MSE)
     # model.load_weights(weights_file_path)
 
