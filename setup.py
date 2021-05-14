@@ -4,7 +4,7 @@ with open("README.md", "r", encoding="utf-8") as fh:
 
 setuptools.setup(
     name='fool_game',
-    version='0.2.15',
+    version='0.2.16',
     packages=['cardgames'],
     # name="example-pkg-YOUR-USERNAME-HERE", # Replace with your own username
     author='cubecloud',

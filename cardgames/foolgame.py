@@ -28,7 +28,7 @@ from tensorflow.keras import layers
 # from tensorflow.keras.layers import BatchNormalization
 # from tensorflow.keras.optimizers import RMSprop, Adam, SGD, RMSprop
 
-__version__ = "0.02.15"
+__version__ = "0.02.16"
 
 
 # def q_model_conv(in_shape=(37, 25,), num_actions=37):
@@ -2837,6 +2837,7 @@ class Environment(Table):
                             turn_reward = self.calc_rank_reward(self.current_player_id)
                     is_done = not self.game_circle
                     info = {'action_external': dummy_player_action,
+                            'round ': self.game_round,
                             'turn_reward': turn_reward,
                             'is_done': is_done,
                             'players_ranks': self.episode_players_ranks,
@@ -2862,6 +2863,7 @@ class Environment(Table):
                                     turn_reward = self.calc_rank_reward(self.current_player_id)
                             is_done = not self.game_circle
                             info = {'action_external': dummy_player_action,
+                                    'round ': self.game_round,
                                     'turn_reward': turn_reward,
                                     'is_done': is_done,
                                     'players_ranks': self.episode_players_ranks,
@@ -2895,6 +2897,7 @@ class Environment(Table):
                                 turn_reward = self.calc_rank_reward(self.current_player_id)
                         is_done = not self.game_circle
                         info = {'action_external': dummy_player_action,
+                                'round ': self.game_round,
                                 'turn_reward': turn_reward,
                                 'is_done': is_done,
                                 'players_ranks': self.episode_players_ranks,
@@ -2916,11 +2919,12 @@ class Environment(Table):
         turn_reward = self.calc_rank_reward(self.observer_player)
         is_done = True
         info = {'action_external': dummy_player_action,
+                'round ': self.game_round,
                 'turn_reward': turn_reward,
                 'is_done': is_done,
                 'players_ranks': self.episode_players_ranks,
                 'player_action': self.action,
-                'valid_actions': self.pl[self.observer_player].turn_valid_actions
+                'valid_actions': self.pl[self.current_player_id].turn_valid_actions
                 }
         return turn_state, turn_reward, is_done, info
 
