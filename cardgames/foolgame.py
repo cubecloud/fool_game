@@ -28,7 +28,7 @@ from tensorflow.keras import layers
 # from tensorflow.keras.layers import BatchNormalization
 # from tensorflow.keras.optimizers import RMSprop, Adam, SGD, RMSprop
 
-__version__ = "0.02.12"
+__version__ = "0.02.15"
 
 
 # def q_model_conv(in_shape=(37, 25,), num_actions=37):
@@ -57,8 +57,18 @@ def q_model_dense(in_shape=(297,), num_actions=37):
     action = layers.Dense(num_actions, activation="linear", kernel_initializer=initializer)(layer2)
     return tensorflow.keras.Model(inputs=inputs, outputs=action)
 
+def q_model_dense(in_shape=(9, 36, 14,), num_actions=37):
+    # initializer = tf.keras.initializers.RandomUniform(minval=0., maxval=0.05)
+    initializer = tf.keras.initializers.GlorotUniform()
+    inputs = layers.Input(shape=in_shape)
+    layer0 = layers.Flatten()(inputs)
+    layer1 = layers.Dense(128, activation="relu", kernel_initializer=initializer)(layer0)
+    layer2 = layers.Dense(256, activation="relu", kernel_initializer=initializer)(layer1)
+    action = layers.Dense(num_actions, activation="linear", kernel_initializer=initializer)(layer2)
+    return tensorflow.keras.Model(inputs=inputs, outputs=action)
 
-Experience = collections.namedtuple('Experience', field_names=['state', 'action', 'valid_action_lst','reward', 'done', 'next_state'])
+Experience = collections.namedtuple('Experience',
+                                    field_names=['state', 'action', 'valid_action_lst', 'reward', 'done', 'next_state'])
 
 
 class ExperienceReplay:
@@ -87,7 +97,8 @@ class ExperienceReplay:
 
     def show(self):
         buffer_length = self.get_length()
-        states, actions, valid_actions_lst, rewards, dones, next_states = zip(*[self.buffer[idx] for idx in range(buffer_length)])
+        states, actions, valid_actions_lst, rewards, dones, next_states = zip(
+            *[self.buffer[idx] for idx in range(buffer_length)])
         return (np.array(states, dtype=np.float32),
                 np.array(actions, dtype=np.uint8),
                 np.array(valid_actions_lst),
@@ -126,7 +137,8 @@ class ExperienceReplay:
             print('Loading exp buffer...')
             # self.buffer = pkl.load(f)
             states, actions, valid_actions_lst, rewards, dones, next_states = pkl.load(f)
-            for state, action, valid_action_lst, reward, done, next_state in zip(states, actions, valid_actions_lst, rewards, dones, next_states):
+            for state, action, valid_action_lst, reward, done, next_state in zip(states, actions, valid_actions_lst,
+                                                                                 rewards, dones, next_states):
                 exp = Experience(state, action, valid_action_lst, reward, done, next_state)
                 self.buffer.append(exp)
             del [states, actions, valid_actions_lst, rewards, dones, next_states]
@@ -168,34 +180,40 @@ class Deck:
             - 1 - атакующая лежит на столе
             - 2 - защитная лежит на столе
             - 3 - в руке игрока (если мы видели карту) то запоминаем
-            - 4 - объявленный козырь (лежит в колоде последним)
+            # - 4 - объявленный козырь (лежит в колоде последним)
         [4] сброс (graveyard)
             - 0 - не в сбросе
             - 1 - в сбросе
         [5] Last action card
             - 0 if card is not last action
             - 1 if card is last action card
-        [6] - Вес карты
+        [6] Weight of card (for trumps set)
+        [7] Public status
+            - 0 if card is not visible
+            - 1 if card is visible
+        [8] Trump card
+            - 0 if card not Trump of current Game
+            - 1 if card Trump of current Game
     """
 
     def __init__(self):
         self.player_deck = {
             # Это инициализация масти пики - 9 карт от 6 пик до туза пик
-            1: [1, 1, 0, 0, 0, 0, 1], 2: [1, 2, 0, 0, 0, 0, 2], 3: [1, 3, 0, 0, 0, 0, 3],
-            4: [1, 4, 0, 0, 0, 0, 4], 5: [1, 5, 0, 0, 0, 0, 5], 6: [1, 6, 0, 0, 0, 0, 6],
-            7: [1, 7, 0, 0, 0, 0, 7], 8: [1, 8, 0, 0, 0, 0, 8], 9: [1, 9, 0, 0, 0, 0, 9],
+            1: [1, 1, 0, 0, 0, 0, 1, 0, 0], 2: [1, 2, 0, 0, 0, 0, 2, 0, 0], 3: [1, 3, 0, 0, 0, 0, 3, 0, 0],
+            4: [1, 4, 0, 0, 0, 0, 4, 0, 0], 5: [1, 5, 0, 0, 0, 0, 5, 0, 0], 6: [1, 6, 0, 0, 0, 0, 6, 0, 0],
+            7: [1, 7, 0, 0, 0, 0, 7, 0, 0], 8: [1, 8, 0, 0, 0, 0, 8, 0, 0], 9: [1, 9, 0, 0, 0, 0, 9, 0, 0],
             # Это инициализация масти крести - 9 карт от 6 крестей до туза крестей
-            10: [2, 1, 0, 0, 0, 0, 1], 11: [2, 2, 0, 0, 0, 0, 2], 12: [2, 3, 0, 0, 0, 0, 3],
-            13: [2, 4, 0, 0, 0, 0, 4], 14: [2, 5, 0, 0, 0, 0, 5], 15: [2, 6, 0, 0, 0, 0, 6],
-            16: [2, 7, 0, 0, 0, 0, 7], 17: [2, 8, 0, 0, 0, 0, 8], 18: [2, 9, 0, 0, 0, 0, 9],
+            10: [2, 1, 0, 0, 0, 0, 1, 0, 0], 11: [2, 2, 0, 0, 0, 0, 2, 0, 0], 12: [2, 3, 0, 0, 0, 0, 3, 0, 0],
+            13: [2, 4, 0, 0, 0, 0, 4, 0, 0], 14: [2, 5, 0, 0, 0, 0, 5, 0, 0], 15: [2, 6, 0, 0, 0, 0, 6, 0, 0],
+            16: [2, 7, 0, 0, 0, 0, 7, 0, 0], 17: [2, 8, 0, 0, 0, 0, 8, 0, 0], 18: [2, 9, 0, 0, 0, 0, 9, 0, 0],
             # Это инициализация масти буби - 9 карт от 6 бубей до туза бубей
-            19: [3, 1, 0, 0, 0, 0, 1], 20: [3, 2, 0, 0, 0, 0, 2], 21: [3, 3, 0, 0, 0, 0, 3],
-            22: [3, 4, 0, 0, 0, 0, 4], 23: [3, 5, 0, 0, 0, 0, 5], 24: [3, 6, 0, 0, 0, 0, 6],
-            25: [3, 7, 0, 0, 0, 0, 7], 26: [3, 8, 0, 0, 0, 0, 8], 27: [3, 9, 0, 0, 0, 0, 9],
+            19: [3, 1, 0, 0, 0, 0, 1, 0, 0], 20: [3, 2, 0, 0, 0, 0, 2, 0, 0], 21: [3, 3, 0, 0, 0, 0, 3, 0, 0],
+            22: [3, 4, 0, 0, 0, 0, 4, 0, 0], 23: [3, 5, 0, 0, 0, 0, 5, 0, 0], 24: [3, 6, 0, 0, 0, 0, 6, 0, 0],
+            25: [3, 7, 0, 0, 0, 0, 7, 0, 0], 26: [3, 8, 0, 0, 0, 0, 8, 0, 0], 27: [3, 9, 0, 0, 0, 0, 9, 0, 0],
             # Это инициализация масти черви - 9 карт от 6 червей до туза червей
-            28: [4, 1, 0, 0, 0, 0, 1], 29: [4, 2, 0, 0, 0, 0, 2], 30: [4, 3, 0, 0, 0, 0, 3],
-            31: [4, 4, 0, 0, 0, 0, 4], 32: [4, 5, 0, 0, 0, 0, 5], 33: [4, 6, 0, 0, 0, 0, 6],
-            34: [4, 7, 0, 0, 0, 0, 7], 35: [4, 8, 0, 0, 0, 0, 8], 36: [4, 9, 0, 0, 0, 0, 9],
+            28: [4, 1, 0, 0, 0, 0, 1, 0, 0], 29: [4, 2, 0, 0, 0, 0, 2, 0, 0], 30: [4, 3, 0, 0, 0, 0, 3, 0, 0],
+            31: [4, 4, 0, 0, 0, 0, 4, 0, 0], 32: [4, 5, 0, 0, 0, 0, 5, 0, 0], 33: [4, 6, 0, 0, 0, 0, 6, 0, 0],
+            34: [4, 7, 0, 0, 0, 0, 7, 0, 0], 35: [4, 8, 0, 0, 0, 0, 8, 0, 0], 36: [4, 9, 0, 0, 0, 0, 9, 0, 0],
         }
 
         self.suit_range = {'П': (1, 10), 'К': (10, 19), 'Б': (19, 28), 'Ч': (28, 37)}
@@ -204,17 +222,18 @@ class Deck:
         self.suits_names = {1: "Пики", 2: "Крести", 3: "Бубны", 4: "Черви"}
         self.suits_icons = {'П': '\u2660', 'К': '\u2663', 'Б': '\u2666', 'Ч': '\u2665'}
         self.debug_verbose = 1
+
     pass
 
     def change_card_status(self, index: int, status: list):
-        self.player_deck[index][2:6] = status
+        self.player_deck[index][2:9] = status
         pass
 
     def get_cardinfo(self, index: int):
         return self.player_deck[index]
 
     def get_current_status(self, index: int):
-        return self.player_deck[index][2:6]
+        return self.player_deck[index][2:9]
 
     def change_card_weight(self, index: int, new_weight: int):
         self.player_deck[index][6] = new_weight
@@ -267,15 +286,29 @@ class Deck:
 
 class Player(Deck):
     def __init__(self,
-                 player_number,
-                 player_type_num,
-                 epsilon):
+                 player_number: int,
+                 player_type_num: int,
+                 players_number: int,
+                 epsilon_probability: float) -> None:
+        """
+        Initialization of Dummy player
+
+        Args:
+            player_number (str):        player number
+            player_type_num (int):      player type number
+            players_number (int):       total number of players
+            epsilon_probability (float):            epsilon (probability )
+
+        Returns:
+            None
+        """
         super().__init__()
         self.player_number = player_number
         self.player_types = {1: 'Human', 2: 'Computer', 3: 'AI', 4: 'Dummy'}
         self.player_type = self.player_types[player_type_num]
+        self.players_number = players_number
         ''' random order '''
-        self.epsilon = epsilon
+        self.epsilon = epsilon_probability
         # если человек то запрашиваем имя
         if self.player_type == self.player_types[1]:
             # self.player_name = self.player_types[player_type]
@@ -286,7 +319,6 @@ class Player(Deck):
         self.game_round: int = 0
         self.player_turn: int = 0
         self.game_turn: int = 0
-        self.players_number: int = 0
         self.desktop_list = list()
         self.passive_player_pass_flag = False
         self.attack_player_pass_flag = False
@@ -294,8 +326,7 @@ class Player(Deck):
         self.trump_index = None
         self.trump_char: str = ''
         self.trump_range = tuple
-        self.turn_state = np.zeros(shape=(37, 21 + self.players_number), dtype=np.float32)
-        self.zeros_state = np.zeros(shape=(37, 21 + self.players_number), dtype=np.float32)
+        # self.zeros_state = np.zeros(shape=(37, 21 + self.players_number), dtype=np.float32)
         self.turn_action_idx: int = 0
         self.turn_experience = tuple()
         self.round_experience: list = []
@@ -304,7 +335,7 @@ class Player(Deck):
         self.game_reward: float = 0
         self.turn_reward = 0
         self.turn_valid_actions: list = []
-        self.action_encode = { None: 0,
+        self.action_encode = {None: 0,
                               'Attack': 1,
                               'Defend': 2,
                               'Passive': 3,
@@ -326,8 +357,17 @@ class Player(Deck):
         for signal of ending of playing in current episode for this player
         form -1 to 36 (now we are using 0-37 vector w/o -1)
         '''
-        self.zero_action_idx: int = 0
+        # self.zero_action_idx: int = 0
         self.converting_players_order = []
+        self.converted_deck_header = np.zeros((36, 14), dtype=np.float32)
+        for ix, card_value in enumerate(self.player_deck.values()):
+            self.converted_deck_header[ix, 1:5] = np.array(self.convert_2ohe(card_value[0], 4))
+            self.converted_deck_header[ix, 5:14] = np.array(self.convert_2ohe(card_value[1], 9))
+        self.converted_deck_header = np.repeat(self.converted_deck_header[np.newaxis, ...],
+                                               self.players_number + 7, axis=0)
+        self.turn_state = np.copy(self.converted_deck_header)
+        self.zeros_state = np.copy(self.converted_deck_header)
+        self.__converting_list()
         pass
 
     @staticmethod
@@ -352,72 +392,45 @@ class Player(Deck):
         Returns:
             state (np.array):   deck dictionary converted to state
         """
-        state = []
-        card_state: list = []
-        if not self.converting_players_order:
-            self.__converting_list()
-        '''
-        Add Zero action_idx to states (pass)
-        '''
-        # state.extend(list(np.zeros(shape=(8), dtype=float)))
-        player_deck = copy.deepcopy(self.player_deck)
-        for ix, card_value in enumerate(player_deck.values()):
-            # if self.debug_verbose > 1:
-            #     print(ix+1, card_value)
-            '''
-            add card index
-            '''
-            card_state.append(float(ix))
-            '''
-            ohe suits data - 4 suits
-            '''
-            card_state.append(float(card_value[0]))
-            # card_state.extend(self.convert_2ohe(card_value[0], 4))
-            '''
-            ohe rank of card data (9 cards)
-            '''
-            # card_state.extend(self.convert_2ohe(card_value[1], 9))
-            card_state.append(float(card_value[1]))
-            '''
-            ohe card as property of player (self.players_number)
-            zero is property of deck
-            # Normalize card as property of player (self.players_number)
-            '''
-            card_property_of = self.convert_card_property(card_value[2])
-            # card_property_of_ohe = self.convert_2ohe(card_property_of, self.players_number + 1, min_value=0)
-            # card_state.extend(card_property_of_ohe)
-            card_state.append(float(card_property_of))
-            # card_state[2] = card_value[2] / self.players_number
-            '''
-            ohe card status (possible statuses = 4 (0 NOT included))
-            # ohe card status (possible statuses = 5 (0 included))
-            # Normalize card status (possible statuses = 4 (0 not included))
-            '''
-            # card_state.extend(self.convert_2ohe(card_value[3], 4))
-            card_state.append(float(card_value[3]))
-            # card_state[3] = card_value[3] / 4
-            '''                    
-            Normalize card graveyard status (zero or 1)
-            do not need normalization
-            '''
-            card_state.append(float(card_value[4]))
-            # card_state[4] = card_value[4]
-            '''
-            Last action card status (True or False)     
-            '''
-            card_state.append(float(card_value[5]))
+        """
+        New Learning state description
+        
+        plane[0]        - 36 card of current player (matrix 35(36) by 13(14))
+                card_states:
+                    [0]     - property flag (0 or 1)
+                    [1..4]  - suit of the card (one hot encoding)
+                    [5..13] - rank of the card (one hot encoding)
+        
+        plane[1]        - Attack played cards on the table
+        plane[2]        - Defend played cards on the table 
+        plane[3..9]     - PUBLIC cards of other player(s) separate plane for each player   
+        plane[4]..[10]  - discard pile (graveyard)
+        plane[5]..[11]  - TRUMP setter LAST card of the deck
+        plane[6]..[12]  - TRUMP deck cards
+        plane[7]..[13]  - last action card 
+        """
+        state = np.copy(self.converted_deck_header)
+        for ix, card_value in enumerate(self.player_deck.values()):
+            if self.debug_verbose > 1:
+                print(ix + 1, card_value)
+            ''' add property of main player '''
+            state[0][ix, 0] = (float(card_value[2] == self.player_number))
+            ''' On the table Attack cards '''
+            state[1][ix, 0] = (float(card_value[3] == 1))
+            ''' On the table Defend cards '''
+            state[2][ix, 0] = (float(card_value[3] == 2))
+            ''' discard pile (graveyard) '''
+            state[3][ix, 0] = (float(card_value[4]))
+            ''' TRUMP for this game '''
+            state[4][ix, 0] = (float(card_value[8]))
+            ''' set the trump flag for suit on this deck '''
+            state[5][ix, 0] = (float(card_value[6] > 9))
+            ''' set the last action card card_value[5] '''
+            state[6][ix, 0] = (float(card_value[5]))
+            ''' Public players property '''
+            for player_ix in range(1, self.players_number + 1):
+                state[player_ix + 6][ix, 0] = float(((card_value[3] != 0) and (card_value[7] == 1) and (card_value[2] == player_ix)))
 
-            '''                                     
-            # Normalize card weight (max card_weight=34)
-            Normalize card weight (max card_weight=18)
-            '''
-            # card_state.extend(self.convert_2ohe(card_value[6], 34, min_value=0))
-            # card_state.append(float(card_value[6] / 18))
-            card_state.append(float(card_value[6]))
-            # state.append(copy.deepcopy(card_state))
-            state.extend(card_state)
-            card_state: list = []
-        state.append(float(self.action_encode[self.action]))
         return np.array(state, dtype=np.float32)
 
     def add_turn_experience(self, action_idx) -> None:
@@ -504,64 +517,122 @@ class Player(Deck):
     def add_graveyard_status(self, index: int):
         """
         Change card status to graveyard
-        # card status self.player_deck[index][2:6]
+        # card status self.player_deck[index][2:9]
 
         """
         ''' get current status '''
         status = self.get_current_status(index)
-
         ''' remove card from any player - status[2] '''
         status[0] = 0
-
         ''' remove card from any action - status[3] '''
         status[1] = 0
-
         ''' add graveyard status '''
         status[2] = 1
-
-        # set this card as last action card (False flag)
+        ''' set this card as last action card (False flag) '''
         status[3] = 0
+        ''' Add public visible status '''
+        status[5] = 1
         self.change_card_status(index, status)
         pass
 
     def remove_last_action_card_status(self, index):
         status = self.get_current_status(index)
-        # set this card as last action card (True flag)
+        ''' remove from this card last action card flag (True flag) '''
         status[3] = 0
+        self.change_card_status(index, status)
         pass
 
     def add_attack_status(self, index: int):
         status = self.get_current_status(index)
-        # player number
+        ''' refresh player number '''
         status[0] = self.player_number
-        # attack status
+        ''' attack status '''
         status[1] = 1
-        if self.desktop_list:
-            self.remove_last_action_card_status(self.desktop_list[-1])
-        # set this card as last action card (True flag)
+        if len(self.desktop_list) > 1:
+            self.remove_last_action_card_status(self.desktop_list[-2])
+        ''' set this card as last action card (True flag) '''
         status[3] = 1
-        self.change_card_status(index, status)
-        pass
-
-    def add_player_status(self, index: int):
-        status = self.get_current_status(index)
-        # player number
-        status[0] = self.player_number
-        # on hand status
-        status[1] = 3
+        ''' Add public visible status '''
+        status[5] = 1
         self.change_card_status(index, status)
         pass
 
     def add_defending_status(self, index: int):
         status = self.get_current_status(index)
-        # player number
+        ''' refresh player number '''
         status[0] = self.player_number
-        # defend status
+        ''' add defend status '''
         status[1] = 2
-        # round number for attack
-        self.remove_last_action_card_status(self.desktop_list[-1])
-        # set this card as last action card (True flag)
+        ''' remove last action flag from last card on desktop '''
+        if len(self.desktop_list) > 1:
+            self.remove_last_action_card_status(self.desktop_list[-2])
+        ''' set this card as last action card (True flag) '''
         status[3] = 1
+        ''' Add public visible status '''
+        status[5] = 1
+        self.change_card_status(index, status)
+        pass
+
+    def add_player_status(self, index: int) -> None:
+        status = self.get_current_status(index)
+        ''' refresh player number '''
+        status[0] = self.player_number
+        ''' on hand status '''
+        status[1] = 3
+        self.change_card_status(index, status)
+        pass
+
+    def add_public_status(self, index: int) -> None:
+        status = self.get_current_status(index)
+        ''' refresh player number '''
+        status[0] = self.player_number
+        ''' add on hand status '''
+        status[1] = 3
+        ''' Add public visible status '''
+        status[5] = 1
+        self.change_card_status(index, status)
+        pass
+
+    def add_other_player_attack_status(self, index: int, player_number: int):
+        status = self.get_current_status(index)
+        ''' refresh player number '''
+        status[0] = player_number
+        ''' attack status '''
+        status[1] = 1
+        if len(self.desktop_list) > 1:
+            self.remove_last_action_card_status(self.desktop_list[-2])
+        ''' set this card as last action card (True flag) '''
+        status[3] = 1
+        ''' Add public visible status '''
+        status[5] = 1
+        self.change_card_status(index, status)
+        pass
+
+    def add_other_player_defending_status(self, index: int, player_number: int):
+        status = self.get_current_status(index)
+        ''' refresh player number '''
+        status[0] = player_number
+        ''' add defend status '''
+        status[1] = 2
+        if len(self.desktop_list) > 1:
+            self.remove_last_action_card_status(self.desktop_list[-2])
+        ''' set this card as last action card (True flag) '''
+        status[3] = 1
+        ''' Add public visible status '''
+        status[5] = 1
+        self.change_card_status(index, status)
+        pass
+
+    def add_other_player_status(self, index: int, player_number) -> None:
+        status = self.get_current_status(index)
+        ''' refresh player number '''
+        status[0] = player_number
+        ''' on hand status '''
+        status[1] = 3
+        ''' remove last action flag from card '''
+        status[3] = 0
+        ''' Add public visible status '''
+        status[5] = 1
         self.change_card_status(index, status)
         pass
 
@@ -867,8 +938,12 @@ class Player(Deck):
         self.trump_index = index
         self.trump_char = self.what_suit(index)
         status = self.get_current_status(index)
-        ''' trump in current game status self.player_deck[index][2:6] '''
-        status[1] = 4
+        ''' trump in current game status self.player_deck[index][2:9] '''
+        ''' Add public visible status '''
+        status[5] = 1
+        ''' Trump of current game flag'''
+        status[6] = 1
+
         self.change_card_status(index, status)
         self.add_weight_2suit(self.trump_char, 9)
         self.trump_range = range(self.suit_range[self.trump_char][0], self.suit_range[self.trump_char][1])
@@ -918,7 +993,8 @@ class AIPlayer(Player):
                  player_number: int,
                  player_type_num: int,
                  nnmodel: tf.keras.Model,
-                 epsilon: float
+                 players_number: int,
+                 epsilon_probability: float
                  ):
         """
         Initialization of AI player
@@ -927,20 +1003,25 @@ class AIPlayer(Player):
             player_number (str):        player number
             player_type_num (int):      player type number
             nnmodel (tf.keras.Model):   nnmodel (keras Model)
+            players_number (int):       total number of players
             epsilon (float):            current epsilon for random action probability
 
         Returns:
             None
         """
-        super().__init__(player_number, player_type_num, epsilon)
+        super().__init__(player_number,
+                         player_type_num,
+                         players_number,
+                         epsilon_probability)
+
         self.nnmodel = nnmodel
         # self.epsilon = epsilon
         self.num_actions = 37
         pass
 
-    def set_epsilon(self, epsilon):
-        self.epsilon = epsilon
-        pass
+    # def set_epsilon(self, epsilon):
+    #     self.epsilon = epsilon
+    #     pass
 
     def get_action(self, action_list):
         if np.random.random() < self.epsilon:
@@ -1062,20 +1143,22 @@ class DummyPlayer(Player):
     def __init__(self,
                  player_number: int,
                  player_type_num: int,
-                 epsilon: float
-                 ):
+                 players_number: int,
+                 epsilon_probability: float
+                 ) -> None:
         """
         Initialization of Dummy player
 
         Args:
-            player_number (str):        player number
-            player_type_num (int):      player type number
+            player_number (str):            player number
+            player_type_num (int):          player type number
+            players_number (int):           total number of players
+            epsilon_probability (float):    epsilon (probability)
 
         Returns:
             None
         """
-        super().__init__(player_number, player_type_num, epsilon=epsilon)
-
+        super().__init__(player_number, player_type_num, players_number, epsilon_probability)
         pass
 
     def attacking(self) -> list:
@@ -1131,6 +1214,7 @@ class DummyPlayer(Player):
             self.turn_valid_actions = np.array(self.passive_attacking(), dtype=np.uint8)
 
         return self.turn_valid_actions
+
     pass
 
 
@@ -1170,9 +1254,9 @@ class Table:
         self.rank_rewards_lst = list(np.linspace(1.0, -1.0, num=self.players_qty))
         pass
 
-    def print_msg(self, msg: str) -> None:
+    def print_msg(self, message: str) -> None:
         if self.verbose:
-            print(msg)
+            print(message)
         pass
 
     def current_card_index(self) -> int:
@@ -1195,7 +1279,6 @@ class Table:
         Returns:
             None
         """
-
         ''' First discard flag set to False '''
         if self.first_discard:
             self.first_discard = False
@@ -1206,7 +1289,21 @@ class Table:
                 self.pl[player_number].add_graveyard_status(index)
         pass
 
-    def add_card_2desktop(self, index, action, action_player_number):
+    def add_card_2desktop(self,
+                          index,
+                          action,
+                          action_player_number) -> None:
+        """
+        Add card to desktop and to players deck
+
+        Args:
+            index (int):                card index
+            action (str):               action string "Attack, "Defend", "Passive"
+            action_player_number (int): action player_number
+
+        Returns:
+            None
+        """
         if action == "Attack":
             action_number = 1
         elif action == "Defend":
@@ -1217,6 +1314,7 @@ class Table:
             """
             action_number = 1
         self.desktop_list.append(index)
+
         for player_id in self.players_numbers_lst:
             self.pl[player_id].desktop_list = self.desktop_list
             status = self.pl[player_id].get_current_status(index)
@@ -1224,6 +1322,13 @@ class Table:
             status[0] = action_player_number
             # on hand status
             status[1] = action_number
+            ''' Remove last action card from status '''
+            if len(self.desktop_list) > 1:
+                self.pl[player_id].remove_last_action_card_status(self.desktop_list[-2])
+            ''' set this card as last action card (True flag) '''
+            status[3] = 1
+            ''' Add public visible status '''
+            status[5] = 1
             self.pl[player_id].change_card_status(index, status)
         pass
 
@@ -1282,18 +1387,14 @@ class Table:
         for index in cards_list:
             # взять карту из листа в руку
             self.pl[player_number].get_card(index)
+
             for player_id in self.players_numbers_lst:
+                self.pl[player_id].remove_last_action_card_status(index)
                 if player_id != player_number:
-                    status = self.pl[player_id].get_current_status(index)
-                    # player number
-                    status[0] = player_number
-                    # on hand status
-                    status[1] = 3
-                    ''' clearing last action card status from all cards '''
-                    status[3] = 0
-                    self.pl[player_id].change_card_status(index, status)
+                    self.pl[player_id].add_other_player_status(index, player_number)
                 else:
                     self.pl[player_id].add_player_status(index)
+                    self.pl[player_id].add_public_status(index)
         pass
 
     # Установить козыря для всех игроков
@@ -1373,10 +1474,10 @@ class Table:
         for player_id in self.players_numbers_lst:
             if player_id == 1:
                 # self.pl[1] = Player(1, 1)
-                self.pl[1] = Player(1, 2, 0.0)
+                self.pl[1] = Player(1, 2, self.players_number, 0.0)
             elif player_id == 2:
                 # Тип 2 - Computer
-                self.pl[player_id] = Player(player_id, 2, 0.0)
+                self.pl[player_id] = Player(player_id, 2, self.players_number, 0.0)
         pass
 
     # Инициализируем словарь (массив) с деками игроков
@@ -1384,7 +1485,7 @@ class Table:
         for player_id in self.players_numbers_lst:
             # заносим в словари деки игроков
             self.pl[player_id].get_deck(self.playing_deck)
-            self.pl[player_id].players_number = self.players_number
+            # self.pl[player_id].players_number = self.players_number
         # устанавливаем индекс карты из колоды на 1
         # это индекс для ###### self.hidden_playing_deck_order ######
         self.hidden_deck_index = 0
@@ -1407,7 +1508,7 @@ class Table:
         player, index = self.first_turn_choice()
         self.player_turn = player
         self.show_trump()
-        self.print_msg(f'Ходит игрок №{player} {self.pl[player].player_name}, у него меньшая карта '\
+        self.print_msg(f'Ходит игрок №{player} {self.pl[player].player_name}, у него меньшая карта ' \
                        f'{self.pl[player].show_card(index)}')
 
         status = self.pl[player].get_current_status(index)
@@ -1536,10 +1637,10 @@ class Table:
                 '''
                 Why zero (0)?
                 '''
-                self.pl[player_id].add_turn_experience(0)
+                # self.pl[player_id].add_turn_experience(0)
                 self.pl[player_id].game_reward = rank_reward
-                self.pl[player_id].add_round_experience()
-                self.pl[player_id].add_episode_experience(rank_reward)
+                # self.pl[player_id].add_round_experience()
+                # self.pl[player_id].add_episode_experience(rank_reward)
 
                 if self.players_number == 2:
                     self.looser = self.next_player(player_id)
@@ -1547,12 +1648,11 @@ class Table:
                     # if self.pl[self.looser].player_type == 'AI':
                     rank_reward = self.calc_rank_reward(self.looser)
                     self.pl[self.looser].game_reward = float(rank_reward)
-                    self.pl[self.looser].add_round_experience()
-                    self.pl[self.looser].add_episode_experience(rank_reward)
+                    # self.pl[self.looser].add_round_experience()
+                    # self.pl[self.looser].add_episode_experience(rank_reward)
                     result = True
 
                 self.one_more_is_out(player_id)
-
         return result
 
     def congratulations(self):
@@ -1680,7 +1780,7 @@ class Table:
 
             ''' Add round experience if player AI '''
             # if self.pl[player_id].player_type == 'AI':
-            self.pl[player_id].add_round_experience()
+            # self.pl[player_id].add_round_experience()
 
             ''' remove passive players flags '''
             self.set_passive_player_pass_flag(player_id, False)
@@ -1737,16 +1837,32 @@ class Table:
             action = 'Passive'
         return action
 
+    # def add_attack_2all(self):
+    #     for player_num in self.players_numbers_lst:
+    #         if player_num != self.current_player_id:
+    #             self.pl[player_num].add_other_player_attack_status(self.result, players_num)
+    #         else:
+    #             self.pl[self.current_player_id].add_attack_status(self.result)
+    #     pass
+    #
+    # def add_defend_2all(self):
+    #     for player_num in self.players_numbers_lst:
+    #         if player_num != self.current_player_id:
+    #             self.pl[player_num].add_other_player_defending_status(self.result, players_num)
+    #         else:
+    #             self.pl[self.current_player_id].add_defending_status(self.result)
+    #     pass
+
     def current_player_attack_action(self) -> None:
         if self.result > 0:
             self.attack_player_empty_hand_flag = False
             self.add_card_2desktop(self.result, self.action, self.current_player_id)
-            self.pl[self.current_player_id].add_attack_status(self.result)
+            # self.pl[self.current_player_id].add_attack_2all()
             self.pl[self.current_player_id].player_cards_onhand_list.remove(self.result)
 
             ''' Save data about turn experience, with action_idx (self.result) '''
-            # if self.pl[self.current_player_id].player_type == 'AI':
-            self.pl[self.current_player_id].add_turn_experience(self.result)
+            # if self.pl[self.current_player_id].player_type == 'Dummy':
+            #     self.pl[self.current_player_id].add_turn_experience(self.result)
 
             # print(f'Ход игрока {player_number}
             # {self.pl[player_number].player_name} - {self.pl[player_number].show_card(result)}')
@@ -1778,8 +1894,8 @@ class Table:
                 self.rem_cards_from_desktop()
 
                 ''' Save data about turn experience, with action_idx (self.result) '''
-                # if self.pl[self.current_player_id].player_type == 'AI':
-                self.pl[self.current_player_id].add_turn_experience(self.result)
+                # if self.pl[self.current_player_id].player_type == 'Dummy':
+                #     self.pl[self.current_player_id].add_turn_experience(self.result)
 
                 # Переход хода
                 self.next_turn()
@@ -1802,8 +1918,8 @@ class Table:
                 self.rem_cards_from_desktop()
 
                 ''' Save data about turn experience, with action_idx (self.result) '''
-                # if self.pl[self.current_player_id].player_type == 'AI':
-                self.pl[self.current_player_id].add_turn_experience(self.result)
+                # if self.pl[self.current_player_id].player_type == 'Dummy':
+                #     self.pl[self.current_player_id].add_turn_experience(self.result)
 
                 # Переход хода
                 self.next_turn()
@@ -1823,7 +1939,7 @@ class Table:
                                f'{self.pl[self.current_player_id].player_name} пасует, можно подбрасывать')
 
                 ''' Save data about turn experience, with action_idx (self.result) '''
-                # if self.pl[self.current_player_id].player_type == 'AI':
+                # if self.pl[self.current_player_id].player_type == 'Dummy':
                 #     self.pl[self.current_player_id].add_turn_experience(self.result)
 
                 self.current_player_id = self.next_player(self.next_player(self.current_player_id))
@@ -1834,14 +1950,14 @@ class Table:
 
     def current_player_defend_action(self) -> None:
         if self.result > 0:
-            self.pl[self.current_player_id].add_defending_status(self.result)
+            self.add_card_2desktop(self.result, self.action, self.current_player_id)
+            # self.pl[self.current_player_id].add_defend_2all()
             # print(self.pl[player_number].player_cards_onhand_list, result)
             self.pl[self.current_player_id].player_cards_onhand_list.remove(self.result)
-            self.add_card_2desktop(self.result, self.action, self.current_player_id)
 
             ''' Save data about turn experience, with action_idx (self.result) '''
-            # if self.pl[self.current_player_id].player_type == 'AI':
-            self.pl[self.current_player_id].add_turn_experience(self.result)
+            # if self.pl[self.current_player_id].player_type == 'Dummy':
+            #     self.pl[self.current_player_id].add_turn_experience(self.result)
 
             # print(
             #     f'Игрок {player_number}
@@ -1905,8 +2021,8 @@ class Table:
             self.add_cardslist_2player_hand(self.current_player_id, self.desktop_list)
 
             ''' Save data about turn experience, with action_idx (self.result) '''
-            # if self.pl[self.current_player_id].player_type == 'AI':
-            self.pl[self.current_player_id].add_turn_experience(self.result)
+            # if self.pl[self.current_player_id].player_type == 'Dummy':
+            #     self.pl[self.current_player_id].add_turn_experience(self.result)
 
             # проверяем на наличие карт
             # если игроков 2 и пас то, если 2 игрока просто следующий кон,
@@ -1937,11 +2053,9 @@ class Table:
             return
         elif self.result < 0:
             # пропускаем ход (к пассивному игроку)
-
             ''' Save data about turn experience, with action_idx (self.result) '''
             # if self.pl[self.current_player_id].player_type == 'AI':
             #     self.pl[self.current_player_id].add_turn_experience(self.result)
-
             self.current_player_id = self.next_player(self.current_player_id)
             # self.show_all_cards(player_number)
             # self.action, self.result = self.pl[player_number].turn()
@@ -1954,13 +2068,13 @@ class Table:
             выставляем флаг, что _не_ пасуем
             если атакующий игрок пасует и на столе меньше 11 (то есть 10) карт
             '''
-            self.pl[self.current_player_id].add_attack_status(self.result)
-            self.pl[self.current_player_id].player_cards_onhand_list.remove(self.result)
             self.add_card_2desktop(self.result, self.action, self.current_player_id)
+            # self.pl[self.current_player_id].add_attack_status(self.result)
+            self.pl[self.current_player_id].player_cards_onhand_list.remove(self.result)
 
             ''' Save data about turn experience, with action_idx (self.result) '''
-            # if self.pl[self.current_player_id].player_type == 'AI':
-            self.pl[self.current_player_id].add_turn_experience(self.result)
+            # if self.pl[self.current_player_id].player_type == 'Dummy':
+            #     self.pl[self.current_player_id].add_turn_experience(self.result)
 
             # print(f'Подброс от игрока {player_number} - {self.pl[player_number].show_card(result)}')
             self.print_msg(
@@ -1977,8 +2091,8 @@ class Table:
             return
         elif self.result == 0:
             ''' Save data about turn experience, with action_idx (self.result) '''
-            # if self.pl[self.current_player_id].player_type == 'AI':
-            self.pl[self.current_player_id].add_turn_experience(self.result)
+            # if self.pl[self.current_player_id].player_type == 'Dummy':
+            #     self.pl[self.current_player_id].add_turn_experience(self.result)
 
             # мы пасуем
             self.print_msg(
@@ -2026,7 +2140,6 @@ class Table:
         2. защищающийся скажет 0 (забираю)
         3. атакующий скажет пас, и пасивный игрок скажет пас тоже
         '''
-
         self.current_player_id = int(self.player_turn)
         while self.game_circle:
             if (len(self.desktop_list) == 12) or \
@@ -2063,6 +2176,7 @@ class Table:
                 self.current_player_passive_action()
                 continue
         pass
+
 
 class Environment(Table):
     dummy_player_action: int
@@ -2180,24 +2294,28 @@ class Environment(Table):
                     self.pl[player_id] = \
                         self.players_types[first_player_setup[0]](1,
                                                                   first_player_setup[0],
+                                                                  self.players_number,
                                                                   first_player_setup[1])
                 else:
                     self.pl[player_id] = \
                         self.players_types[first_player_setup[0]](1,
                                                                   first_player_setup[0],
                                                                   self.nnmodel,
+                                                                  self.players_number,
                                                                   first_player_setup[1])
             elif player_id != self.observer_player:
                 if other_players_setup[0] != 3:
                     self.pl[player_id] = \
                         self.players_types[other_players_setup[0]](player_id,
                                                                    other_players_setup[0],
+                                                                   self.players_number,
                                                                    other_players_setup[1])
                 else:
                     self.pl[player_id] = \
                         self.players_types[other_players_setup[0]](player_id,
                                                                    other_players_setup[0],
                                                                    self.nnmodel,
+                                                                   self.players_number,
                                                                    other_players_setup[1])
         pass
 
@@ -2345,13 +2463,13 @@ class Environment(Table):
         if self.result > 0:
             self.attack_player_empty_hand_flag = False
             self.add_card_2desktop(self.result, self.action, self.current_player_id)
-            self.pl[self.current_player_id].add_attack_status(self.result)
+            # self.add_attack_2all()
             self.pl[self.current_player_id].player_cards_onhand_list.remove(self.result)
             ''' Add reward of action '''
             # self.pl[self.current_player_id].turn_reward = 0.005
             ''' Save data about turn experience, with action_idx (self.result) '''
-            # if self.pl[self.current_player_id].player_type == 'AI':
-            self.pl[self.current_player_id].add_turn_experience(self.result)
+            # if self.pl[self.current_player_id].player_type == 'Dummy':
+            #     self.pl[self.current_player_id].add_turn_experience(self.result)
 
             # print(f'Ход игрока {player_number}
             # {self.pl[player_number].player_name} - {self.pl[player_number].show_card(result)}')
@@ -2385,8 +2503,8 @@ class Environment(Table):
                 self.rem_cards_from_desktop()
 
                 ''' Save data about turn experience, with action_idx (self.result) '''
-                # if self.pl[self.current_player_id].player_type == 'AI':
-                self.pl[self.current_player_id].add_turn_experience(self.result)
+                # if self.pl[self.current_player_id].player_type == 'Dummy':
+                #     self.pl[self.current_player_id].add_turn_experience(self.result)
                 # Переход хода
                 self.next_turn()
                 if self.check_end_of_game():
@@ -2408,8 +2526,8 @@ class Environment(Table):
                 self.rem_cards_from_desktop()
 
                 ''' Save data about turn experience, with action_idx (self.result) '''
-                # if self.pl[self.current_player_id].player_type == 'AI':
-                self.pl[self.current_player_id].add_turn_experience(self.result)
+                # if self.pl[self.current_player_id].player_type == 'Dummy':
+                #     self.pl[self.current_player_id].add_turn_experience(self.result)
 
                 # Переход хода
                 self.next_turn()
@@ -2429,7 +2547,7 @@ class Environment(Table):
                                f'{self.pl[self.current_player_id].player_name} пасует, можно подбрасывать')
 
                 ''' Save data about turn experience, with action_idx (self.result) '''
-                # if self.pl[self.current_player_id].player_type == 'AI':
+                # if self.pl[self.current_player_id].player_type == 'Dummy':
                 #     self.pl[self.current_player_id].add_turn_experience(self.result)
 
                 self.current_player_id = self.next_player(self.next_player(self.current_player_id))
@@ -2440,16 +2558,17 @@ class Environment(Table):
 
     def current_player_defend_action(self) -> None:
         if self.result > 0:
-            self.pl[self.current_player_id].add_defending_status(self.result)
+            self.add_card_2desktop(self.result, self.action, self.current_player_id)
+            # self.pl[self.current_player_id].add_defending_status(self.result)
             # print(self.pl[player_number].player_cards_onhand_list, result)
             self.pl[self.current_player_id].player_cards_onhand_list.remove(self.result)
-            self.add_card_2desktop(self.result, self.action, self.current_player_id)
+
             # ''' Add reward of action '''
             # self.pl[self.current_player_id].turn_reward = 0.005
 
             ''' Save data about turn experience, with action_idx (self.result) '''
-            # if self.pl[self.current_player_id].player_type == 'AI':
-            self.pl[self.current_player_id].add_turn_experience(self.result)
+            # if self.pl[self.current_player_id].player_type == 'Dummy':
+            #     self.pl[self.current_player_id].add_turn_experience(self.result)
 
             # print(
             #     f'Игрок {player_number}
@@ -2520,8 +2639,8 @@ class Environment(Table):
             self.add_cardslist_2player_hand(self.current_player_id, self.desktop_list)
 
             ''' Save data about turn experience, with action_idx (self.result) '''
-            # if self.pl[self.current_player_id].player_type == 'AI':
-            self.pl[self.current_player_id].add_turn_experience(self.result)
+            # if self.pl[self.current_player_id].player_type == 'Dummy':
+            #     self.pl[self.current_player_id].add_turn_experience(self.result)
 
             # проверяем на наличие карт
             # если игроков 2 и пас то, если 2 игрока просто следующий кон,
@@ -2708,7 +2827,6 @@ class Environment(Table):
             self.pl[self.current_player_id].epsilon = step_epsilon
 
             if self.action == 'Attack':
-
                 if self.queue_to_get_dummy_action_idx():
                     turn_state = self.pl[self.current_player_id].convert_deck_2state()
                     # print(turn_state.shape)
@@ -2849,7 +2967,7 @@ class Agent:
     def play_step(self, nnmodel, epsilon=0.99):
         done_reward = None
         step_valid_actions = self.env.pl[self.observer_player].analyze()
-         # msg_before = f"Before valid actions list {valid_action_lst}"
+        # msg_before = f"Before valid actions list {valid_action_lst}"
         if np.random.random() < epsilon:
             action = random.choice(step_valid_actions)
         else:
@@ -2923,7 +3041,7 @@ if __name__ == '__main__':
     weights_name = f"fool_cardgame_weights_2500.h5"
     weights_file_path = os.path.join(HOME, weights_name)
     players_num = 2
-    model = q_model_dense(in_shape=(289, ), num_actions=37)
+    model = q_model_dense(in_shape=(9, 36, 14,), num_actions=37)
     model.compile(optimizer=tf.keras.optimizers.Adam(), loss=tf.keras.losses.MSE)
     # model.load_weights(weights_file_path)
 
@@ -2949,13 +3067,13 @@ if __name__ == '__main__':
     eps_decay = .999985
     eps_min = 0.02
 
-    for _ in range(10):
+    for _ in range(1):
         reward = None
         counter = 0
-        test_agent.verbose = True
-        test_agent.debug_verbose = 2
         while reward is None:
-            epsilon = max(epsilon*eps_decay, eps_min)
+            test_agent.verbose = True
+            test_agent.debug_verbose = 2
+            epsilon = max(epsilon * eps_decay, eps_min)
             counter += 1
             msg = f'--------------------------------------------------------------\n' \
                   f'                      step {counter} start                    \n' \
@@ -2967,4 +3085,3 @@ if __name__ == '__main__':
                   f'--------------------------------------------------------------\n'
             print(msg)
             print(f"Reward turn {counter:02d} {reward}\n")
-
