@@ -12,6 +12,7 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 
+import sys
 import random
 from typing import Tuple
 # import pydantic
@@ -28,7 +29,7 @@ from tensorflow.keras import layers
 # from tensorflow.keras.layers import BatchNormalization
 # from tensorflow.keras.optimizers import RMSprop, Adam, SGD, RMSprop
 
-__version__ = "0.02.17"
+__version__ = "0.02.20"
 
 
 # def q_model_conv(in_shape=(37, 25,), num_actions=37):
@@ -335,10 +336,9 @@ class Player(Deck):
         self.game_reward: float = 0
         self.turn_reward = 0
         self.turn_valid_actions: list = []
-        self.action_encode = {None: 0,
-                              'Attack': 1,
-                              'Defend': 2,
-                              'Passive': 3,
+        self.action_encode = {'Attack': 0,
+                              'Defend': 1,
+                              'Passive': 2,
                               }
         '''
         Zero reward - should be added at the end of episode
@@ -359,14 +359,15 @@ class Player(Deck):
         '''
         # self.zero_action_idx: int = 0
         self.converting_players_order = []
-        self.converted_deck_header = np.zeros((36, 14), dtype=np.float32)
-        for ix, card_value in enumerate(self.player_deck.values()):
-            self.converted_deck_header[ix, 1:5] = np.array(self.convert_2ohe(card_value[0], 4))
-            self.converted_deck_header[ix, 5:14] = np.array(self.convert_2ohe(card_value[1], 9))
-        self.converted_deck_header = np.repeat(self.converted_deck_header[np.newaxis, ...],
-                                               self.players_number + 7, axis=0)
-        self.turn_state = np.copy(self.converted_deck_header)
-        self.zeros_state = np.copy(self.converted_deck_header)
+        self.empty_deck = np.zeros((37,), dtype=np.float32)
+
+        # for ix, card_value in enumerate(self.player_deck.values()):
+        #     self.converted_deck_header[ix, 1:5] = np.array(self.convert_2ohe(card_value[0], 4))
+        #     self.converted_deck_header[ix, 5:14] = np.array(self.convert_2ohe(card_value[1], 9))
+        self.all_empty_states = np.repeat(self.empty_deck[np.newaxis, ...],
+                                               self.players_number*3 + 8, axis=0)
+        self.turn_state = np.copy(self.empty_deck)
+        self.zeros_state = np.copy(self.empty_deck)
         self.__converting_list()
         pass
 
@@ -393,6 +394,24 @@ class Player(Deck):
             state (np.array):   deck dictionary converted to state
         """
         """
+        State v005
+        plane[0-2]      - current player state matrix of 36 cards + pass 
+                        # 9 card + special card (pass) action
+                        # 4 suits
+                        each card is have state 1 or 0 (zero) - present or not
+                        each plane corresponds to ('Attack', 'Defend' or 'Passive Attack') _player state_
+                        Warning! 37 action card = 'Pass',  must be added to _player state_ at all actions,
+                        but not a 1st Attack turn
+                    
+        plane[3]        - Attack played cards on the table
+        plane[4]        - Defend played cards on the table
+        plane[5]        - last action card 
+        plane[6]        - TRUMP deck cards
+        plane[7]        - discard pile (graveyard)
+        plane[8..23]    - PUBLIC cards of other player(s) separate planes for each player 
+                        and for each _player state_  (3*players_qty - 1)
+
+        '''
         New Learning state description
         
         plane[0]        - 36 card of current player (matrix 35(36) by 13(14))
@@ -401,35 +420,96 @@ class Player(Deck):
                     [1..4]  - suit of the card (one hot encoding)
                     [5..13] - rank of the card (one hot encoding)
         
-        plane[1]        - Attack played cards on the table
-        plane[2]        - Defend played cards on the table 
-        plane[3..9]     - PUBLIC cards of other player(s) separate plane for each player   
-        plane[4]..[10]  - discard pile (graveyard)
+        # plane[1]        - Attack played cards on the table
+        # plane[2]        - Defend played cards on the table 
+        # plane[3..9]     - PUBLIC cards of other player(s) separate plane for each player   
+        # plane[4]..[10]  - discard pile (graveyard)
         plane[5]..[11]  - TRUMP setter LAST card of the deck
-        plane[6]..[12]  - TRUMP deck cards
-        plane[7]..[13]  - last action card 
+        # plane[6]..[12]  - TRUMP deck cards
+        # plane[7]..[13]  - last action card 
+        '''
         """
-        state = np.copy(self.converted_deck_header)
+        attack_states = [0, 3]
+        defend_states = [1, 4]
+        state = np.copy(self.all_empty_states)
+        # TODO Rewrite function
         for ix, card_value in enumerate(self.player_deck.values()):
             if self.debug_verbose > 1:
                 print(ix + 1, card_value)
-            ''' add property of main player '''
-            state[0][ix, 0] = (float(card_value[2] == self.player_number))
+            ''' current plane is based on self.action '''
+            if self.action is not None:
+                curr_player_plane = self.action_encode[self.action]
+                ''' add property of main player '''
+                state[curr_player_plane][ix] = (float(card_value[2] == self.player_number))
+                if len(self.desktop_list) > 1 and (self.action == 'Attack'):
+                    state[0 + curr_player_plane][36] = .0
+                else:
+                    state[0 + curr_player_plane][36] = 1.0
+            else:
+                for curr_player_plane in range(3):
+                    state[curr_player_plane][ix] = (float(card_value[2] == self.player_number))
+                    if len(self.desktop_list) > 1 and (self.action == 'Attack'):
+                        state[0 + curr_player_plane][36] = .0
+                    else:
+                        state[0 + curr_player_plane][36] = 1.0
             ''' On the table Attack cards '''
-            state[1][ix, 0] = (float(card_value[3] == 1))
+            state[3][ix] = (float(card_value[3] == 1))
             ''' On the table Defend cards '''
-            state[2][ix, 0] = (float(card_value[3] == 2))
-            ''' discard pile (graveyard) '''
-            state[3][ix, 0] = (float(card_value[4]))
-            ''' TRUMP for this game '''
-            state[4][ix, 0] = (float(card_value[8]))
-            ''' set the trump flag for suit on this deck '''
-            state[5][ix, 0] = (float(card_value[6] > 9))
+            state[4][ix] = (float(card_value[3] == 2))
             ''' set the last action card card_value[5] '''
-            state[6][ix, 0] = (float(card_value[5]))
+            state[5][ix] = (float(card_value[5]))
+            ''' set the trump flag for suit on this deck '''
+            state[6][ix] = (float(card_value[6] > 9))
+            ''' discard pile (graveyard) '''
+            state[7][ix] = (float(card_value[4]))
+            last_state = 8
+
             ''' Public players property '''
-            for player_ix in range(1, self.players_number + 1):
-                state[player_ix + 6][ix, 0] = float(((card_value[3] != 0) and (card_value[7] == 1) and (card_value[2] == player_ix)))
+            if self.players_number == 2:
+                if self.action is not None:
+                    if self.action == 'Attack':
+                        next_player_action = 'Defend'
+                    else:
+                        next_player_action = 'Attack'
+                    next_player_plane = self.action_encode[next_player_action]
+                    ''' Public players property '''
+                    for player_ix in range(1, self.players_number + 1):
+                        if self.player_number == player_ix:
+                            curr_player_plane = self.action_encode[self.action]
+                            state[last_state + curr_player_plane][ix] = float(
+                                ((card_value[3] != 0) and (card_value[7] == 1) and (card_value[2] == player_ix)))
+                            if len(self.desktop_list) > 1 and (self.action == 'Attack'):
+                                state[last_state + curr_player_plane][36] = .0
+                            else:
+                                state[last_state + curr_player_plane][36] = 1.0
+                        else:
+                            state[last_state + next_player_plane][ix] = float(
+                                ((card_value[3] != 0) and (card_value[7] == 1) and (card_value[2] == player_ix)))
+                            if len(self.desktop_list) > 1 and (self.action == 'Defend'):
+                                state[last_state + next_player_plane][36] = .0
+                            else:
+                                state[last_state + next_player_plane][36] = 1.0
+                        last_state += 3
+                else:
+                    for player_ix in range(1, self.players_number + 1):
+                        for next_player_plane in range(3):
+                            state[last_state + next_player_plane][ix] = float(((card_value[3] != 0) and (card_value[7] == 1) and (card_value[2] == player_ix)))
+                            if len(self.desktop_list) > 1 and (self.action == 'Defend'):
+                                state[last_state + next_player_plane][36] = .0
+                            else:
+                                state[last_state + next_player_plane][36] = 1.0
+                        last_state += 3
+            else:
+                sys.exit('Error - not implemented...')
+
+
+            # ''' set the trump flag for suit on this deck '''
+            # state[5][ix, 0] = (float(card_value[6] > 9))
+            # ''' TRUMP for this game '''
+            # state[6][ix] = (float(card_value[8]))
+            # ''' Public players property '''
+            # for player_ix in range(1, self.players_number + 1):
+            #     state[player_ix + 6][ix, 0] = float(((card_value[3] != 0) and (card_value[7] == 1) and (card_value[2] == player_ix)))
 
         return np.array(state, dtype=np.float32)
 
@@ -3044,7 +3124,7 @@ if __name__ == '__main__':
     weights_name = f"fool_cardgame_weights_2500.h5"
     weights_file_path = os.path.join(HOME, weights_name)
     players_num = 2
-    model = q_model_dense(in_shape=(9, 36, 14,), num_actions=37)
+    model = q_model_dense(in_shape=(518,), num_actions=37)
     model.compile(optimizer=tf.keras.optimizers.Adam(), loss=tf.keras.losses.MSE)
     # model.load_weights(weights_file_path)
 
