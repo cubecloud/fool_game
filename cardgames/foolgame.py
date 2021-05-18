@@ -25,11 +25,14 @@ import tensorflow as tf
 import tensorflow.keras
 from tensorflow.keras import layers
 
+from torch import FloatTensor
+from torch.nn.functional import normalize
+
 # from tensorflow.keras.layers import Dense, Flatten, Input, Lambda, Conv2D, MaxPooling2D, Reshape, Multiply
 # from tensorflow.keras.layers import BatchNormalization
 # from tensorflow.keras.optimizers import RMSprop, Adam, SGD, RMSprop
 
-__version__ = "0.02.21"
+__version__ = "0.02.22"
 
 
 # def q_model_conv(in_shape=(37, 25,), num_actions=37):
@@ -48,15 +51,15 @@ __version__ = "0.02.21"
 #     return tensorflow.keras.Model(inputs=inputs, outputs=action)
 
 
-def q_model_dense(in_shape=(297,), num_actions=37):
-    # initializer = tf.keras.initializers.RandomUniform(minval=0., maxval=0.05)
-    initializer = tf.keras.initializers.GlorotUniform()
-    inputs = layers.Input(shape=in_shape)
-    layer0 = layers.Flatten()(inputs)
-    layer1 = layers.Dense(128, activation="relu", kernel_initializer=initializer)(layer0)
-    layer2 = layers.Dense(256, activation="relu", kernel_initializer=initializer)(layer1)
-    action = layers.Dense(num_actions, activation="linear", kernel_initializer=initializer)(layer2)
-    return tensorflow.keras.Model(inputs=inputs, outputs=action)
+# def q_model_dense(in_shape=(297,), num_actions=37):
+#     # initializer = tf.keras.initializers.RandomUniform(minval=0., maxval=0.05)
+#     initializer = tf.keras.initializers.GlorotUniform()
+#     inputs = layers.Input(shape=in_shape)
+#     layer0 = layers.Flatten()(inputs)
+#     layer1 = layers.Dense(128, activation="relu", kernel_initializer=initializer)(layer0)
+#     layer2 = layers.Dense(256, activation="relu", kernel_initializer=initializer)(layer1)
+#     action = layers.Dense(num_actions, activation="linear", kernel_initializer=initializer)(layer2)
+#     return tensorflow.keras.Model(inputs=inputs, outputs=action)
 
 def q_model_dense(in_shape=(9, 36, 14,), num_actions=37):
     # initializer = tf.keras.initializers.RandomUniform(minval=0., maxval=0.05)
@@ -411,28 +414,10 @@ class Player(Deck):
         plane[8..23]    - PUBLIC cards of other player(s) separate planes for each player 
                         and for each _player state_  (3*players_qty - 1)
 
-        '''
-        New Learning state description
-        
-        plane[0]        - 36 card of current player (matrix 35(36) by 13(14))
-                card_states:
-                    [0]     - property flag (0 or 1)
-                    [1..4]  - suit of the card (one hot encoding)
-                    [5..13] - rank of the card (one hot encoding)
-        
-        # plane[1]        - Attack played cards on the table
-        # plane[2]        - Defend played cards on the table 
-        # plane[3..9]     - PUBLIC cards of other player(s) separate plane for each player   
-        # plane[4]..[10]  - discard pile (graveyard)
-        plane[5]..[11]  - TRUMP setter LAST card of the deck
-        # plane[6]..[12]  - TRUMP deck cards
-        # plane[7]..[13]  - last action card 
-        '''
         """
-        attack_states = [0, 3]
-        defend_states = [1, 4]
+
         state = np.copy(self.all_empty_states)
-        # TODO Rewrite function
+        # TODO Rewrite method for 2-6 players  now only for 2
         for ix, card_value in enumerate(self.player_deck.values()):
             if self.debug_verbose > 1:
                 print(ix + 1, card_value)
@@ -458,8 +443,11 @@ class Player(Deck):
             state[4][ix] = (float(card_value[3] == 2))
             ''' set the last action card card_value[5] '''
             state[5][ix] = (float(card_value[5]))
-            ''' set the trump flag for suit on this deck '''
-            state[6][ix] = (float(card_value[6] > 9))
+            ''' 
+            set weight of cards
+            # set the trump flag for suit on this deck 
+            '''
+            state[6][ix] = (float(card_value[6]/18))
             ''' discard pile (graveyard) '''
             state[7][ix] = (float(card_value[4]))
             last_state = 8
@@ -501,8 +489,9 @@ class Player(Deck):
                         last_state += 3
             else:
                 sys.exit('Error - not implemented...')
-
-
+            # (discounted_rewards - discounted_rewards.mean()) / discounted_rewards.std()
+            # state[6] = (state[6] - state[6].mean()) / state[6].std()
+            # state[6] = normalize(FloatTensor(state[6]), dim=0, eps=1e-16).numpy()
             # ''' set the trump flag for suit on this deck '''
             # state[5][ix, 0] = (float(card_value[6] > 9))
             # ''' TRUMP for this game '''
@@ -1084,7 +1073,7 @@ class AIPlayer(Player):
             player_type_num (int):      player type number
             nnmodel (tf.keras.Model):   nnmodel (keras Model)
             players_number (int):       total number of players
-            epsilon (float):            current epsilon for random action probability
+            epsilon_probability (float):            current epsilon for random action probability
 
         Returns:
             None
@@ -1588,7 +1577,7 @@ class Table:
         player, index = self.first_turn_choice()
         self.player_turn = player
         self.show_trump()
-        self.print_msg(f'Ходит игрок №{player} {self.pl[player].player_name}, у него меньшая карта ' \
+        self.print_msg(f'Ходит игрок №{player} {self.pl[player].player_name}, у него меньшая карта '
                        f'{self.pl[player].show_card(index)}')
 
         status = self.pl[player].get_current_status(index)
