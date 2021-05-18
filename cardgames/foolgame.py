@@ -29,7 +29,7 @@ from tensorflow.keras import layers
 # from tensorflow.keras.layers import BatchNormalization
 # from tensorflow.keras.optimizers import RMSprop, Adam, SGD, RMSprop
 
-__version__ = "0.02.20"
+__version__ = "0.02.21"
 
 
 # def q_model_conv(in_shape=(37, 25,), num_actions=37):

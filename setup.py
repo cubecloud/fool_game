@@ -4,7 +4,7 @@ with open("README.md", "r", encoding="utf-8") as fh:
 
 setuptools.setup(
     name='fool_game',
-    version='0.2.20',
+    version='0.2.21',
     packages=['cardgames'],
     # name="example-pkg-YOUR-USERNAME-HERE", # Replace with your own username
     author='cubecloud',
@@ -21,8 +21,8 @@ setuptools.setup(
     # package_dir={"": ""},
     python_requires=">=3.7",
     install_requires=['setuptools>=51.0.0',
-                      'tensorflow==2.3.0',
-                      'numpy==1.18.5',
+                      # 'tensorflow==2.3.0',
+                      # 'numpy==1.18.5',
                       'pytz>=2018.9',
                       'matplotlib>=3.0.2',
                       'seaborn>=0.11.1',
