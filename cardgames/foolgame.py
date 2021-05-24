@@ -32,7 +32,7 @@ from torch.nn.functional import normalize
 # from tensorflow.keras.layers import BatchNormalization
 # from tensorflow.keras.optimizers import RMSprop, Adam, SGD, RMSprop
 
-__version__ = "0.02.46"
+__version__ = "0.02.47"
 
 
 # def q_model_conv(in_shape=(37, 25,), num_actions=37):
@@ -2895,7 +2895,7 @@ class Environment(Table):
 
         if self.dummy_player_action not in self.pl[self.observer_player].analyze():
             if self.turn_state is None:
-                turn_state = self.pl[self.current_player_id].convert_deck_2state()
+                self.turn_state = self.pl[self.current_player_id].convert_deck_2state()
             turn_reward = -0.1
             is_done = False
             info = {'action_external': dummy_player_action,
