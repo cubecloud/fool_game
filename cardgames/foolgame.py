@@ -32,7 +32,7 @@ from torch.nn.functional import normalize
 # from tensorflow.keras.layers import BatchNormalization
 # from tensorflow.keras.optimizers import RMSprop, Adam, SGD, RMSprop
 
-__version__ = "0.02.48"
+__version__ = "0.02.49"
 
 
 # def q_model_conv(in_shape=(37, 25,), num_actions=37):
@@ -1292,12 +1292,28 @@ class Action:
         self.shape = (37, 1)
         self.low = 0
         self.high = self.shape[0]
+        # self.actions_dict = {}
+        # self.cards_indexes = range(0, 36)
+        # self.pass_action = 37
         pass
 
     def sample(self):
         valid_actions = self.pl.analyze()
         action = random.choice(valid_actions)
         return action
+
+    def translate_4game(self, action):
+        translated_action = 0
+        if action != 36:
+            translated_action = action + 1
+        return translated_action
+
+    def translate_4net(self, action):
+        translated_action = 36
+        if action != 0:
+            translated_action = action - 1
+        return translated_action
+
 
 class Observation(Action):
     def __init__(self, player_object: DummyPlayer):
@@ -2887,11 +2903,13 @@ class Environment(Table):
              dummy_player_action: Any,
              first_step=False,
              step_epsilon=.99):
-        if isinstance(dummy_player_action, (np.ndarray, np.generic)):
-            # noinspection PyTypeChecker
-            self.dummy_player_action = np.argmax(dummy_player_action)
-        else:
-            self.dummy_player_action = dummy_player_action
+        self.dummy_player_action = self.action_space.translate(dummy_player_action)
+        # if isinstance(dummy_player_action, (np.ndarray, np.generic)):
+        #     # noinspection PyTypeChecker
+        #     self.dummy_player_action = np.argmax(dummy_player_action)
+        # else:
+        #     self.dummy_player_action = dummy_player_action
+        self.dummy_player_action = dummy_player_action
 
         if self.dummy_player_action not in self.pl[self.observer_player].analyze():
             if self.turn_state is None:
@@ -3091,7 +3109,7 @@ class Agent:
     def play_step(self, nnmodel, epsilon=0.99):
         done_reward = None
         ''' Testing '''
-        action = self.env.action_space.sample()
+        # action = self.env.action_space.sample()
         step_valid_actions = self.env.pl[self.observer_player].analyze()
 
 
