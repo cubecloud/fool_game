@@ -32,7 +32,7 @@ from torch.nn.functional import normalize
 # from tensorflow.keras.layers import BatchNormalization
 # from tensorflow.keras.optimizers import RMSprop, Adam, SGD, RMSprop
 
-__version__ = "0.02.44"
+__version__ = "0.02.45"
 
 
 # def q_model_conv(in_shape=(37, 25,), num_actions=37):
@@ -2371,7 +2371,7 @@ class Environment(Table):
             None
         """
 
-        if self.env_type == "dummy":
+        if self.env_type == "Dummy":
             players_types_setup = [(4, 0), (2, self.epsilon)]
         elif self.env_type == "1computer-ai":
             players_types_setup = [(2, self.epsilon), (3, self.epsilon)]
@@ -3068,7 +3068,11 @@ class Agent:
 
     def play_step(self, nnmodel, epsilon=0.99):
         done_reward = None
+        ''' Testing '''
+        action = self.env.action_space.sample()
         step_valid_actions = self.env.pl[self.observer_player].analyze()
+
+
         # msg_before = f"Before valid actions list {valid_action_lst}"
         if np.random.random() < epsilon:
             action = random.choice(step_valid_actions)
@@ -3150,7 +3154,7 @@ if __name__ == '__main__':
     buffer = ExperienceReplay(20000)
 
     environment = Environment(players_num,
-                              env_type="dummy",
+                              env_type="Dummy",
                               observer_player=1,
                               nnmodel=model)
     environment.verbose = True
