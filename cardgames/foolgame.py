@@ -32,7 +32,7 @@ from torch.nn.functional import normalize
 # from tensorflow.keras.layers import BatchNormalization
 # from tensorflow.keras.optimizers import RMSprop, Adam, SGD, RMSprop
 
-__version__ = "0.02.53"
+__version__ = "0.02.54"
 
 
 # def q_model_conv(in_shape=(37, 25,), num_actions=37):
@@ -1310,12 +1310,11 @@ class Action:
         return translated_action
 
     def translate_4net(self, action):
-
         translated_action = 36
         if action != 0:
             translated_action = action - 1
         new_action = np.zeros(self.shape[0])
-        new_action[action] = float(1.0)
+        new_action[translated_action] = float(1.0)
         return new_action
 
 
@@ -2578,6 +2577,8 @@ class Environment(Table):
     def current_player_attack_action(self) -> None:
         if self.result > 0:
             self.attack_player_empty_hand_flag = False
+            # TODO: remove print
+            print(self.result)
             self.add_card_2desktop(self.result, self.action, self.current_player_id)
             # self.add_attack_2all()
             self.pl[self.current_player_id].player_cards_onhand_list.remove(self.result)
