@@ -14,7 +14,7 @@
 
 import sys
 import random
-from typing import Tuple
+from typing import Tuple, Any
 # import pydantic
 import numpy as np
 import pickle as pkl
@@ -32,7 +32,7 @@ from torch.nn.functional import normalize
 # from tensorflow.keras.layers import BatchNormalization
 # from tensorflow.keras.optimizers import RMSprop, Adam, SGD, RMSprop
 
-__version__ = "0.02.24"
+__version__ = "0.02.31"
 
 
 # def q_model_conv(in_shape=(37, 25,), num_actions=37):
@@ -226,7 +226,6 @@ class Deck:
         self.suits_names = {1: "Пики", 2: "Крести", 3: "Бубны", 4: "Черви"}
         self.suits_icons = {'П': '\u2660', 'К': '\u2663', 'Б': '\u2666', 'Ч': '\u2665'}
         self.debug_verbose = 1
-
     pass
 
     def change_card_status(self, index: int, status: list):
@@ -286,6 +285,7 @@ class Deck:
             print(f'{cards_on_hand}. ' + self.show_card(card))
             cards_on_hand += 1
         pass
+
 
 
 class Player(Deck):
@@ -368,7 +368,7 @@ class Player(Deck):
         #     self.converted_deck_header[ix, 1:5] = np.array(self.convert_2ohe(card_value[0], 4))
         #     self.converted_deck_header[ix, 5:14] = np.array(self.convert_2ohe(card_value[1], 9))
         self.all_empty_states = np.repeat(self.empty_deck[np.newaxis, ...],
-                                               self.players_number*3 + 8, axis=0)
+                                          self.players_number*3 + 8, axis=0)
         self.turn_state = np.copy(self.empty_deck)
         self.zeros_state = np.copy(self.empty_deck)
         self.__converting_list()
@@ -1204,7 +1204,6 @@ class AIPlayer(Player):
             """
             card_index = self.passive_attacking()
         return card_index
-
     pass
 
 
@@ -1286,6 +1285,25 @@ class DummyPlayer(Player):
 
     pass
 
+
+class Action:
+    def __init__(self, player_object: DummyPlayer):
+        self.pl = player_object
+        self.shape = (37, 1)
+        self.low = 0
+        self.high = self.shape[0]
+        pass
+
+    def sample(self):
+        valid_actions = self.pl.analyze()
+        action = random.choice(valid_actions)
+        return action
+
+class Observation(Action):
+    def __init__(self, player_object: DummyPlayer):
+        super().__init__(player_object)
+        self.observation_space = self.pl.all_empty_states
+        pass
 
 class Table:
     def __init__(self, players_qty):
@@ -2255,16 +2273,20 @@ class Environment(Table):
                  env_type='computer',
                  observer_player=1,
                  games_qty=1,
+                 seed=0,
                  nnmodel=None):
+        random.seed(seed)
         super().__init__(players_qty)
         self.env_type = env_type
         self.games_qty: int = games_qty
         self.nnmodel = nnmodel
         self.players_types = {1: Player, 2: Player, 3: AIPlayer, 4: DummyPlayer}
         self.step_not_done = True
-        self.action_space_low = 0
-        self.action_space_high = 37
-        self.num_actions = self.action_space_high
+        if self.env_type == 'Dummy':
+            self.action_space = Action(self.pl[observer_player])
+            self.observation_space = Observation(self.pl[observer_player])
+
+        self.num_actions = self.action_space.high
         assert observer_player <= players_qty
         self.observer_player = observer_player
         self.episode_players_ranks = []
@@ -2292,6 +2314,7 @@ class Environment(Table):
         if self.nnmodel is not None:
             self.init_nnmodel()
         self.turn_done = False
+
         pass
 
     def init_nnmodel(self):
@@ -2859,10 +2882,14 @@ class Environment(Table):
         return False
 
     def step(self,
-             dummy_player_action,
+             dummy_player_action: Any,
              first_step=False,
              step_epsilon=.99):
-        self.dummy_player_action = dummy_player_action
+        if isinstance(dummy_player_action, (np.ndarray, np.generic)):
+            # noinspection PyTypeChecker
+            self.dummy_player_action = np.argmax(dummy_player_action)
+        else:
+            self.dummy_player_action = dummy_player_action
         self.step_not_done = True
         self.first_step = first_step
         self.have_hit = False
