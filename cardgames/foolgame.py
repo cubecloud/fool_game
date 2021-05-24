@@ -32,7 +32,7 @@ from torch.nn.functional import normalize
 # from tensorflow.keras.layers import BatchNormalization
 # from tensorflow.keras.optimizers import RMSprop, Adam, SGD, RMSprop
 
-__version__ = "0.02.52"
+__version__ = "0.02.53"
 
 
 # def q_model_conv(in_shape=(37, 25,), num_actions=37):
@@ -2907,7 +2907,7 @@ class Environment(Table):
              dummy_player_action: Any,
              first_step=False,
              step_epsilon=.99):
-        self.dummy_player_action = self.action_space.translate_4game(dummy_player_action)
+        # self.dummy_player_action = self.action_space.translate_4game(dummy_player_action)
         # if isinstance(dummy_player_action, (np.ndarray, np.generic)):
         #     # noinspection PyTypeChecker
         #     self.dummy_player_action = np.argmax(dummy_player_action)
