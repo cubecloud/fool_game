@@ -32,7 +32,7 @@ from torch.nn.functional import normalize
 # from tensorflow.keras.layers import BatchNormalization
 # from tensorflow.keras.optimizers import RMSprop, Adam, SGD, RMSprop
 
-__version__ = "0.02.31"
+__version__ = "0.02.43"
 
 
 # def q_model_conv(in_shape=(37, 25,), num_actions=37):
@@ -1330,7 +1330,6 @@ class Table:
         self.pl: dict = {}
         for i in range(1, self.players_number + 1):
             self.players_numbers_lst.append(i)
-
         self.debug_verbose = 1
         self.episode_players_ranks: list = []
         self.start_time = time.time()
@@ -2269,7 +2268,7 @@ class Environment(Table):
     dummy_player_action: int
 
     def __init__(self,
-                 players_qty,
+                 players_qty=2,
                  env_type='computer',
                  observer_player=1,
                  games_qty=1,
@@ -2282,14 +2281,11 @@ class Environment(Table):
         self.nnmodel = nnmodel
         self.players_types = {1: Player, 2: Player, 3: AIPlayer, 4: DummyPlayer}
         self.step_not_done = True
-        if self.env_type == 'Dummy':
-            self.action_space = Action(self.pl[observer_player])
-            self.observation_space = Observation(self.pl[observer_player])
 
-        self.num_actions = self.action_space.high
         assert observer_player <= players_qty
         self.observer_player = observer_player
         self.episode_players_ranks = []
+
 
         self.game_idx: int = 0
         self.game_idxs: list = []
@@ -2314,7 +2310,12 @@ class Environment(Table):
         if self.nnmodel is not None:
             self.init_nnmodel()
         self.turn_done = False
-
+        _ = self.reset()
+        self.step(0, first_step=True)
+        if self.env_type == 'Dummy':
+            self.action_space = Action(self.pl[self.observer_player])
+            self.observation_space = Observation(self.pl[self.observer_player])
+            self.num_actions = self.action_space.high
         pass
 
     def init_nnmodel(self):
