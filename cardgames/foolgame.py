@@ -32,7 +32,7 @@ from torch.nn.functional import normalize
 # from tensorflow.keras.layers import BatchNormalization
 # from tensorflow.keras.optimizers import RMSprop, Adam, SGD, RMSprop
 
-__version__ = "0.02.45"
+__version__ = "0.02.46"
 
 
 # def q_model_conv(in_shape=(37, 25,), num_actions=37):
@@ -2310,6 +2310,7 @@ class Environment(Table):
         if self.nnmodel is not None:
             self.init_nnmodel()
         self.turn_done = False
+        self.turn_state = None
         _ = self.reset()
         self.step(0, first_step=True)
         if self.env_type == 'Dummy':
@@ -2891,6 +2892,22 @@ class Environment(Table):
             self.dummy_player_action = np.argmax(dummy_player_action)
         else:
             self.dummy_player_action = dummy_player_action
+
+        if self.dummy_player_action not in self.pl[self.observer_player].analyze():
+            if self.turn_state is None:
+                turn_state = self.pl[self.current_player_id].convert_deck_2state()
+            turn_reward = -0.1
+            is_done = False
+            info = {'action_external': dummy_player_action,
+                    'round ': self.game_round,
+                    'turn_reward': turn_reward,
+                    'is_done': is_done,
+                    'players_ranks': self.episode_players_ranks,
+                    'player_action': self.action,
+                    'valid_actions': self.pl[self.current_player_id].turn_valid_actions
+                    }
+            return self.turn_state, turn_reward, is_done, info
+
         self.step_not_done = True
         self.first_step = first_step
         self.have_hit = False
@@ -2926,7 +2943,7 @@ class Environment(Table):
 
             if self.action == 'Attack':
                 if self.queue_to_get_dummy_action_idx():
-                    turn_state = self.pl[self.current_player_id].convert_deck_2state()
+                    self.turn_state = self.pl[self.current_player_id].convert_deck_2state()
                     # print(turn_state.shape)
                     turn_reward = self.pl[self.current_player_id].turn_reward
                     if self.episode_players_ranks:
@@ -2942,7 +2959,7 @@ class Environment(Table):
                             'player_action': self.action,
                             'valid_actions': self.pl[self.current_player_id].turn_valid_actions
                             }
-                    return turn_state, turn_reward, is_done, info
+                    return self.turn_state, turn_reward, is_done, info
                 ''' Main attack action '''
                 self.current_player_attack_action()
                 continue
@@ -2952,7 +2969,7 @@ class Environment(Table):
                     check_parity = (len(self.pl[self.current_player_id].desktop_list) + 1) % 2
                     if check_parity == 0:
                         if self.queue_to_get_dummy_action_idx():
-                            turn_state = self.pl[self.current_player_id].convert_deck_2state()
+                            self.turn_state = self.pl[self.current_player_id].convert_deck_2state()
                             # print(turn_state.shape)
                             turn_reward = self.pl[self.current_player_id].turn_reward
                             if self.episode_players_ranks:
@@ -2968,7 +2985,7 @@ class Environment(Table):
                                     'player_action': self.action,
                                     'valid_actions': self.pl[self.current_player_id].turn_valid_actions
                                     }
-                            return turn_state, turn_reward, is_done, info
+                            return self.turn_state, turn_reward, is_done, info
                         ''' Main defend action '''
                         self.current_player_defend_action()
                     else:
@@ -2986,7 +3003,7 @@ class Environment(Table):
                 if (0 < len(self.pl[self.current_player_id].desktop_list) < 11) \
                         and self.pl[self.current_player_id].attack_player_pass_flag:
                     if self.queue_to_get_dummy_action_idx():
-                        turn_state = self.pl[self.current_player_id].convert_deck_2state()
+                        self.turn_state = self.pl[self.current_player_id].convert_deck_2state()
                         # print(turn_state.shape)
                         turn_reward = self.pl[self.current_player_id].turn_reward
                         if self.episode_players_ranks:
@@ -3002,7 +3019,7 @@ class Environment(Table):
                                 'player_action': self.action,
                                 'valid_actions': self.pl[self.current_player_id].turn_valid_actions
                                 }
-                        return turn_state, turn_reward, is_done, info
+                        return self.turn_state, turn_reward, is_done, info
                     ''' Main passive action '''
                     self.current_player_passive_action()
                 else:
@@ -3013,7 +3030,7 @@ class Environment(Table):
                     self.current_player_id = self.next_player(self.current_player_id)
                 continue
 
-        turn_state = self.pl[self.observer_player].convert_deck_2state()
+        self.turn_state = self.pl[self.observer_player].convert_deck_2state()
         turn_reward = self.calc_rank_reward(self.observer_player)
         is_done = True
         info = {'action_external': dummy_player_action,
@@ -3024,7 +3041,7 @@ class Environment(Table):
                 'player_action': self.action,
                 'valid_actions': self.pl[self.current_player_id].turn_valid_actions
                 }
-        return turn_state, turn_reward, is_done, info
+        return self.turn_state, turn_reward, is_done, info
 
 
 class Agent:
