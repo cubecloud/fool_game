@@ -32,7 +32,7 @@ from torch.nn.functional import normalize
 # from tensorflow.keras.layers import BatchNormalization
 # from tensorflow.keras.optimizers import RMSprop, Adam, SGD, RMSprop
 
-__version__ = "0.02.23"
+__version__ = "0.02.24"
 
 
 # def q_model_conv(in_shape=(37, 25,), num_actions=37):
@@ -2262,7 +2262,9 @@ class Environment(Table):
         self.nnmodel = nnmodel
         self.players_types = {1: Player, 2: Player, 3: AIPlayer, 4: DummyPlayer}
         self.step_not_done = True
-        self.num_actions = 37
+        self.action_space_low = 0
+        self.action_space_high = 37
+        self.num_actions = self.action_space_high
         assert observer_player <= players_qty
         self.observer_player = observer_player
         self.episode_players_ranks = []
