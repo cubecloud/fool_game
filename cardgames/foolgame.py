@@ -32,7 +32,7 @@ from torch.nn.functional import normalize
 # from tensorflow.keras.layers import BatchNormalization
 # from tensorflow.keras.optimizers import RMSprop, Adam, SGD, RMSprop
 
-__version__ = "0.02.51"
+__version__ = "0.02.52"
 
 
 # def q_model_conv(in_shape=(37, 25,), num_actions=37):
@@ -1305,15 +1305,18 @@ class Action:
     def translate_4game(self, action):
         refined_action = np.argmax(action)
         translated_action = 0
-        if refined_action != 36:
+        if refined_action != self.shape[0]-1:
             translated_action = refined_action + 1
         return translated_action
 
     def translate_4net(self, action):
+
         translated_action = 36
         if action != 0:
             translated_action = action - 1
-        return translated_action
+        new_action = np.zeros(self.shape[0])
+        new_action[action] = float(1.0)
+        return new_action
 
 
 class Observation(Action):
@@ -2912,21 +2915,21 @@ class Environment(Table):
         #     self.dummy_player_action = dummy_player_action
         self.dummy_player_action = dummy_player_action
 
-        if self.dummy_player_action not in self.pl[self.observer_player].analyze():
-            if self.turn_state is None:
-                self.turn_state = self.pl[self.current_player_id].convert_deck_2state()
-            turn_reward = -0.1
-            is_done = False
-            info = {'action_external': dummy_player_action,
-                    'action_refined': self.dummy_player_action,
-                    'round ': self.game_round,
-                    'turn_reward': turn_reward,
-                    'is_done': is_done,
-                    'players_ranks': self.episode_players_ranks,
-                    'player_action': self.action,
-                    'valid_actions': self.pl[self.current_player_id].turn_valid_actions
-                    }
-            return self.turn_state, turn_reward, is_done, info
+        # if self.dummy_player_action not in self.pl[self.observer_player].analyze():
+        #     if self.turn_state is None:
+        #         self.turn_state = self.pl[self.current_player_id].convert_deck_2state()
+        #     turn_reward = -0.1
+        #     is_done = False
+        #     info = {'action_external': dummy_player_action,
+        #             'action_refined': self.dummy_player_action,
+        #             'round ': self.game_round,
+        #             'turn_reward': turn_reward,
+        #             'is_done': is_done,
+        #             'players_ranks': self.episode_players_ranks,
+        #             'player_action': self.action,
+        #             'valid_actions': self.pl[self.current_player_id].turn_valid_actions
+        #             }
+        #     return self.turn_state, turn_reward, is_done, info
 
         self.step_not_done = True
         self.first_step = first_step
