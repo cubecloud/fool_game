@@ -32,7 +32,7 @@ from torch.nn.functional import normalize
 # from tensorflow.keras.layers import BatchNormalization
 # from tensorflow.keras.optimizers import RMSprop, Adam, SGD, RMSprop
 
-__version__ = "0.02.50"
+__version__ = "0.02.51"
 
 
 # def q_model_conv(in_shape=(37, 25,), num_actions=37):
@@ -1303,9 +1303,10 @@ class Action:
         return action
 
     def translate_4game(self, action):
+        refined_action = np.argmax(action)
         translated_action = 0
-        if action != 36:
-            translated_action = action + 1
+        if refined_action != 36:
+            translated_action = refined_action + 1
         return translated_action
 
     def translate_4net(self, action):
