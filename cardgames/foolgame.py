@@ -32,7 +32,7 @@ from torch.nn.functional import normalize
 # from tensorflow.keras.layers import BatchNormalization
 # from tensorflow.keras.optimizers import RMSprop, Adam, SGD, RMSprop
 
-__version__ = "0.02.43"
+__version__ = "0.02.44"
 
 
 # def q_model_conv(in_shape=(37, 25,), num_actions=37):
@@ -1302,7 +1302,7 @@ class Action:
 class Observation(Action):
     def __init__(self, player_object: DummyPlayer):
         super().__init__(player_object)
-        self.observation_space = self.pl.all_empty_states
+        self.shape = self.pl.all_empty_states.shape
         pass
 
 class Table:
