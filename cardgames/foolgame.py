@@ -32,7 +32,7 @@ from torch.nn.functional import normalize
 # from tensorflow.keras.layers import BatchNormalization
 # from tensorflow.keras.optimizers import RMSprop, Adam, SGD, RMSprop
 
-__version__ = "0.02.62"
+__version__ = "0.02.63"
 
 
 # def q_model_conv(in_shape=(37, 25,), num_actions=37):
@@ -502,27 +502,27 @@ class Player(Deck):
 
         return state
 
-    def add_turn_experience(self, action_idx) -> None:
-        """
-        Prepare and add one turn experience data to one round experience data
-
-        Args:
-            action_idx: action card index from player turn
-
-        Returns:
-            None:
-        """
-        '''
-        for temporary testing purpose
-        if action_idx == -1:
-            action_idx = 0
-        '''
-
-        self.game_turn += 1
-        self.turn_state = self.convert_deck_2state()
-        self.turn_experience: tuple = (self.turn_state, action_idx, self.zero_reward, self.zero_done)
-        self.round_experience.append(self.turn_experience)
-        pass
+    # def add_turn_experience(self, action_idx) -> None:
+    #     """
+    #     Prepare and add one turn experience data to one round experience data
+    #
+    #     Args:
+    #         action_idx: action card index from player turn
+    #
+    #     Returns:
+    #         None:
+    #     """
+    #     '''
+    #     for temporary testing purpose
+    #     if action_idx == -1:
+    #         action_idx = 0
+    #     '''
+    #
+    #     self.game_turn += 1
+    #     self.turn_state = self.convert_deck_2state()
+    #     self.turn_experience: tuple = (self.turn_state, action_idx, self.zero_reward, self.zero_done)
+    #     self.round_experience.append(self.turn_experience)
+    #     pass
 
     def add_round_experience(self):
         """
@@ -1099,7 +1099,7 @@ class AIPlayer(Player):
             # Predict action Q-values
             # From environment state
 
-            state_a = self.convert_deck_2state()
+            state_a = self.convert_deck_2state().flatten()
             state_tensor = tf.convert_to_tensor(state_a)
             state_tensor = tf.expand_dims(state_tensor, 0)
             q_values = self.nnmodel(state_tensor, training=False)
@@ -2411,7 +2411,7 @@ class Environment(Table):
         else:
             self.step(0, first_step=True)
         # TODO create another option for reset environment and return state may be choose the player
-        return self.pl[self.observer_player].convert_deck_2state()
+        return self.pl[self.observer_player].convert_deck_2state().flatten()
 
     def init_nnmodel(self):
         if not self.compiled_status:
@@ -3187,7 +3187,7 @@ class Agent:
         # action = self.env.action_space.sample()
 
         step_valid_actions = self.env.action_space.get_env_valid_actions()
-        step_valid_actions2 = self.env.pl[self.observer_player].analyze()
+        # step_valid_actions2 = self.env.pl[self.observer_player].analyze()
 
         # msg_before = f"Before valid actions list {valid_action_lst}"
         if np.random.random() < epsilon:
