@@ -32,7 +32,7 @@ from torch.nn.functional import normalize
 # from tensorflow.keras.layers import BatchNormalization
 # from tensorflow.keras.optimizers import RMSprop, Adam, SGD, RMSprop
 
-__version__ = "0.02.57"
+__version__ = "0.02.58"
 
 
 # def q_model_conv(in_shape=(37, 25,), num_actions=37):
@@ -1298,6 +1298,10 @@ class Action(object):
         # self.cards_indexes = range(0, 36)
         # self.pass_action = 37
         pass
+    def to_ohe(self, action):
+        new_action = np.zeros(self.shape[0])
+        new_action[action] = float(1.0)
+        return new_action
 
     def get_env_valid_actions(self) -> list:
         valid_actions = self.pl.analyze()
@@ -1321,21 +1325,24 @@ class Action(object):
             result = True
         return result
 
-    def to_ohe(self, action):
-        new_action = np.zeros(self.shape[0])
-        new_action[action] = float(1.0)
-        return new_action
+    def is_this_valid_action_ohe(self, action) -> bool:
+        translated_action = self.translate_action_4game_ohe(action)
+        valid_actions = self.pl.analyze()
+        result = False
+        if translated_action in valid_actions:
+            result = True
+        return result
+
+    def sample(self):
+        valid_actions = self.get_env_valid_actions()
+        action = random.choice(valid_actions)
+        return action
 
     def sample_ohe(self):
         valid_actions = self.get_env_valid_actions()
         action = random.choice(valid_actions)
         translated_valid_action = self.to_ohe(action)
         return translated_valid_action
-
-    def sample(self):
-        valid_actions = self.get_env_valid_actions()
-        action = random.choice(valid_actions)
-        return action
 
     def translate_action_4game_ohe(self, action) -> int:
         assert isinstance(action, np.ndarray), "action must be np.ndarray"
