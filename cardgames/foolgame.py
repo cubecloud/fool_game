@@ -32,7 +32,7 @@ from torch.nn.functional import normalize
 # from tensorflow.keras.layers import BatchNormalization
 # from tensorflow.keras.optimizers import RMSprop, Adam, SGD, RMSprop
 
-__version__ = "0.02.61"
+__version__ = "0.02.62"
 
 
 # def q_model_conv(in_shape=(37, 25,), num_actions=37):
@@ -500,7 +500,7 @@ class Player(Deck):
             # for player_ix in range(1, self.players_number + 1):
             #     state[player_ix + 6][ix, 0] = float(((card_value[3] != 0) and (card_value[7] == 1) and (card_value[2] == player_ix)))
 
-        return np.array(state, dtype=np.float32)
+        return state
 
     def add_turn_experience(self, action_idx) -> None:
         """
@@ -3034,7 +3034,7 @@ class Environment(Table):
             if self.action == 'Attack':
                 if self.queue_to_get_dummy_action_idx():
                     self.turn_state = self.pl[self.current_player_id].convert_deck_2state()
-                    self.turn_state = self.turn_state.reshape(-1, )
+                    self.turn_state = self.turn_state.flatten()
                     # print(turn_state.shape)
                     turn_reward = self.pl[self.current_player_id].turn_reward
                     if self.episode_players_ranks:
@@ -3063,7 +3063,7 @@ class Environment(Table):
                         if self.queue_to_get_dummy_action_idx():
                             self.turn_state = self.pl[self.current_player_id].convert_deck_2state()
                             # print(turn_state.shape)
-                            self.turn_state = self.turn_state.reshape(-1, )
+                            self.turn_state = self.turn_state.flatten()
                             turn_reward = self.pl[self.current_player_id].turn_reward
                             if self.episode_players_ranks:
                                 if self.current_player_id in self.episode_players_ranks:
@@ -3098,7 +3098,7 @@ class Environment(Table):
                         and self.pl[self.current_player_id].attack_player_pass_flag:
                     if self.queue_to_get_dummy_action_idx():
                         self.turn_state = self.pl[self.current_player_id].convert_deck_2state()
-                        self.turn_state = self.turn_state.reshape(-1, )
+                        self.turn_state = self.turn_state.flatten()
                         # print(turn_state.shape)
                         turn_reward = self.pl[self.current_player_id].turn_reward
                         if self.episode_players_ranks:
@@ -3127,7 +3127,7 @@ class Environment(Table):
                 continue
 
         self.turn_state = self.pl[self.observer_player].convert_deck_2state()
-        self.turn_state = self.turn_state.reshape(-1, )
+        self.turn_state = self.turn_state.flatten()
         turn_reward = self.calc_rank_reward(self.observer_player)
         is_done = True
         info = {'action_external': dummy_player_action,
