@@ -32,7 +32,7 @@ from torch.nn.functional import normalize
 # from tensorflow.keras.layers import BatchNormalization
 # from tensorflow.keras.optimizers import RMSprop, Adam, SGD, RMSprop
 
-__version__ = "0.02.63"
+__version__ = "0.02.64"
 
 
 # def q_model_conv(in_shape=(37, 25,), num_actions=37):
@@ -2642,12 +2642,10 @@ class Environment(Table):
     def current_player_attack_action(self) -> None:
         if self.result > 0:
             self.attack_player_empty_hand_flag = False
-            # print('Action index', self.result)
             self.add_card_2desktop(self.result, self.action, self.current_player_id)
-            # self.add_attack_2all()
             self.pl[self.current_player_id].player_cards_onhand_list.remove(self.result)
             ''' Add reward of action '''
-            # self.pl[self.current_player_id].turn_reward = 0.005
+            self.pl[self.current_player_id].turn_reward = 0.005
             ''' Save data about turn experience, with action_idx (self.result) '''
             # if self.pl[self.current_player_id].player_type == 'Dummy':
             #     self.pl[self.current_player_id].add_turn_experience(self.result)
@@ -2673,7 +2671,7 @@ class Environment(Table):
         elif self.result == 0:
             ''' if only 2 players and the player action is pass (self.result == 0) '''
             ''' Add reward of action '''
-            # self.pl[self.current_player_id].turn_reward = 0.001
+            self.pl[self.current_player_id].turn_reward = 0.001
             if self.players_number == 2:
                 # Карты уходят в сброс того что входит
                 self.print_msg(
@@ -2745,7 +2743,7 @@ class Environment(Table):
             self.pl[self.current_player_id].player_cards_onhand_list.remove(self.result)
 
             ''' Add reward of action '''
-            # self.pl[self.current_player_id].turn_reward = 0.005
+            self.pl[self.current_player_id].turn_reward = 0.005
 
             ''' Save data about turn experience, with action_idx (self.result) '''
             # if self.pl[self.current_player_id].player_type == 'Dummy':
@@ -2813,7 +2811,8 @@ class Environment(Table):
             Add reward of action
             Returns back all card and penalty for every card player get 
             '''
-            # self.pl[self.current_player_id].turn_reward = (-0.005 * (len(self.desktop_list)-1)/2) + (-0.001 * ((len(self.desktop_list)-1)/2+1))
+            self.pl[self.current_player_id].turn_reward = \
+                (-0.005 * (len(self.desktop_list)-1)/2) + (-0.001 * ((len(self.desktop_list)-1)/2+1))
 
             ''' Мы забрали карты со стола '''
             self.add_cardslist_2player_hand(self.current_player_id, self.desktop_list)
@@ -2865,7 +2864,7 @@ class Environment(Table):
     def current_player_passive_action(self) -> None:
         if self.result > 0:
             ''' Add reward of action '''
-            # self.pl[self.current_player_id].turn_reward = 0.005
+            self.pl[self.current_player_id].turn_reward = 0.005
             '''
             выставляем флаг, что _не_ пасуем
             если атакующий игрок пасует и на столе меньше 11 (то есть 10) карт
@@ -2893,7 +2892,7 @@ class Environment(Table):
             return
         elif self.result == 0:
             ''' Add reward of action '''
-            # self.pl[self.current_player_id].turn_reward = 0.001
+            self.pl[self.current_player_id].turn_reward = 0.001
             ''' Save data about turn experience, with action_idx (self.result) '''
             # if self.pl[self.current_player_id].player_type == 'AI':
             self.pl[self.current_player_id].add_turn_experience(self.result)
@@ -2975,28 +2974,9 @@ class Environment(Table):
         # self.dummy_player_action = self.action_space.translate_4game(dummy_player_action)
         if isinstance(dummy_player_action, np.ndarray):
             # noinspection PyTypeChecker
-            # print('array action')
             self.dummy_player_action = self.action_space.translate_action_4game_ohe(dummy_player_action)
         else:
-            # print('simple action')
             self.dummy_player_action = self.action_space.translate_action_4game(dummy_player_action)
-        # self.dummy_player_action = dummy_player_action
-
-        # if self.dummy_player_action not in self.pl[self.observer_player].analyze():
-        #     if self.turn_state is None:
-        #         self.turn_state = self.pl[self.current_player_id].convert_deck_2state()
-        #     turn_reward = -0.1
-        #     is_done = False
-        #     info = {'action_external': dummy_player_action,
-        #             'action_refined': self.dummy_player_action,
-        #             'round ': self.game_round,
-        #             'turn_reward': turn_reward,
-        #             'is_done': is_done,
-        #             'players_ranks': self.episode_players_ranks,
-        #             'player_action': self.action,
-        #             'valid_actions': self.pl[self.current_player_id].turn_valid_actions
-        #             }
-        #     return self.turn_state, turn_reward, is_done, info
 
         self.step_not_done = True
         self.first_step = first_step
