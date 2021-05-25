@@ -32,7 +32,7 @@ from torch.nn.functional import normalize
 # from tensorflow.keras.layers import BatchNormalization
 # from tensorflow.keras.optimizers import RMSprop, Adam, SGD, RMSprop
 
-__version__ = "0.02.58"
+__version__ = "0.02.59"
 
 
 # def q_model_conv(in_shape=(37, 25,), num_actions=37):
@@ -2642,8 +2642,7 @@ class Environment(Table):
     def current_player_attack_action(self) -> None:
         if self.result > 0:
             self.attack_player_empty_hand_flag = False
-            # TODO: remove print
-            print('Action index', self.result)
+            # print('Action index', self.result)
             self.add_card_2desktop(self.result, self.action, self.current_player_id)
             # self.add_attack_2all()
             self.pl[self.current_player_id].player_cards_onhand_list.remove(self.result)
@@ -2976,7 +2975,7 @@ class Environment(Table):
         # self.dummy_player_action = self.action_space.translate_4game(dummy_player_action)
         if isinstance(dummy_player_action, np.ndarray):
             # noinspection PyTypeChecker
-            print('array action')
+            # print('array action')
             self.dummy_player_action = self.action_space.translate_action_4game_ohe(dummy_player_action)
         else:
             # print('simple action')
