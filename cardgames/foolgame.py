@@ -32,7 +32,7 @@ from torch.nn.functional import normalize
 # from tensorflow.keras.layers import BatchNormalization
 # from tensorflow.keras.optimizers import RMSprop, Adam, SGD, RMSprop
 
-__version__ = "0.02.54"
+__version__ = "0.02.57"
 
 
 # def q_model_conv(in_shape=(37, 25,), num_actions=37):
@@ -1286,35 +1286,89 @@ class DummyPlayer(Player):
     pass
 
 
-class Action:
-    def __init__(self, player_object: DummyPlayer):
+class Action(object):
+    def __init__(self, player_object: object):
         self.pl = player_object
         self.shape = (37, 1)
         self.low = 0
         self.high = self.shape[0]
+        self.abs_minmax = 1.0
+        self.pass_action = self.shape[0]-1
         # self.actions_dict = {}
         # self.cards_indexes = range(0, 36)
         # self.pass_action = 37
         pass
 
-    def sample(self):
+    def get_env_valid_actions(self) -> list:
         valid_actions = self.pl.analyze()
+        translated_valid_actions = []
+        for action in valid_actions:
+            translated_valid_actions.append(self.translate_action_4net(action))
+        return translated_valid_actions
+
+    def get_env_valid_actions_ohe(self) -> list:
+        valid_actions = self.pl.analyze()
+        translated_valid_actions = []
+        for action in valid_actions:
+            translated_valid_actions.append(self.translate_action_4net_ohe(action))
+        return translated_valid_actions
+
+    def is_this_valid_action(self, action) -> bool:
+        translated_action = self.translate_action_4game(action)
+        valid_actions = self.pl.analyze()
+        result = False
+        if translated_action in valid_actions:
+            result = True
+        return result
+
+    def to_ohe(self, action):
+        new_action = np.zeros(self.shape[0])
+        new_action[action] = float(1.0)
+        return new_action
+
+    def sample_ohe(self):
+        valid_actions = self.get_env_valid_actions()
+        action = random.choice(valid_actions)
+        translated_valid_action = self.to_ohe(action)
+        return translated_valid_action
+
+    def sample(self):
+        valid_actions = self.get_env_valid_actions()
         action = random.choice(valid_actions)
         return action
 
-    def translate_4game(self, action):
+    def translate_action_4game_ohe(self, action) -> int:
+        assert isinstance(action, np.ndarray), "action must be np.ndarray"
         refined_action = np.argmax(action)
         translated_action = 0
-        if refined_action != self.shape[0]-1:
+        ''' If it's not action = 36 (36 = pass)'''
+        if refined_action != self.pass_action:
+            ''' adding + 1 for get true index of card for game'''
             translated_action = refined_action + 1
+        return int(translated_action)
+
+    def translate_action_4game(self, action) -> int:
+        assert isinstance(action, (int, float, np.int64)), "action must be int, float or np.int64"
+        translated_action = 0
+        ''' If it's not action = 36 (36 = pass)'''
+        if action != self.pass_action:
+            ''' adding + 1 for get true index of card for game'''
+            translated_action = action + 1
         return translated_action
 
-    def translate_4net(self, action):
+    def translate_action_4net(self, action) -> int:
         translated_action = 36
+        ''' If it's not action = 0 (not translated game pass action)'''
         if action != 0:
             translated_action = action - 1
-        new_action = np.zeros(self.shape[0])
-        new_action[translated_action] = float(1.0)
+        return translated_action
+
+    def translate_action_4net_ohe(self, action) -> np.ndarray:
+        translated_action = 36
+        ''' If it's not action = 0 (not translated game pass action)'''
+        if action != 0:
+            translated_action = action - 1
+        new_action = self.to_ohe(translated_action)
         return new_action
 
 
@@ -1323,6 +1377,7 @@ class Observation(Action):
         super().__init__(player_object)
         self.shape = self.pl.all_empty_states.shape
         pass
+
 
 class Table:
     def __init__(self, players_qty):
@@ -1345,7 +1400,6 @@ class Table:
         self.game_round: int = 0
         self.action: str = str()
         self.attack_player_empty_hand_flag = False
-
         self.pl: dict = {}
         for i in range(1, self.players_number + 1):
             self.players_numbers_lst.append(i)
@@ -2331,12 +2385,26 @@ class Environment(Table):
         self.turn_done = False
         self.turn_state = None
         _ = self.reset()
+        pass
+
+    def reset(self) -> None:
+        """
+        Reset table (reinit)
+
+        Returns:
+            state (np.array):   returns initial state
+        """
+        super().__init__(self.players_qty)
+        self.prepare_new_game()
         if self.env_type == 'Dummy':
             self.action_space = Action(self.pl[self.observer_player])
             self.observation_space = Observation(self.pl[self.observer_player])
             self.num_actions = self.action_space.high
-        self.step(0, first_step=True)
-        pass
+            self.step(self.action_space.pass_action, first_step=True)
+        else:
+            self.step(0, first_step=True)
+        # TODO create another option for reset environment and return state may be choose the player
+        return self.pl[self.observer_player].convert_deck_2state()
 
     def init_nnmodel(self):
         if not self.compiled_status:
@@ -2434,17 +2502,7 @@ class Environment(Table):
                                                                    other_players_setup[1])
         pass
 
-    def reset(self) -> None:
-        """
-        Reset table (reinit)
 
-        Returns:
-            state (np.array):   returns initial state
-        """
-        super().__init__(self.players_qty)
-        self.prepare_new_game()
-        # TODO create another option for reset environment and return state may be choose the player
-        return self.pl[self.observer_player].convert_deck_2state()
 
     def __add_report_data(self):
         self.game_idxs.append(self.game_idx)
@@ -2578,7 +2636,7 @@ class Environment(Table):
         if self.result > 0:
             self.attack_player_empty_hand_flag = False
             # TODO: remove print
-            print(self.result)
+            print('Action index', self.result)
             self.add_card_2desktop(self.result, self.action, self.current_player_id)
             # self.add_attack_2all()
             self.pl[self.current_player_id].player_cards_onhand_list.remove(self.result)
@@ -2909,12 +2967,14 @@ class Environment(Table):
              first_step=False,
              step_epsilon=.99):
         # self.dummy_player_action = self.action_space.translate_4game(dummy_player_action)
-        # if isinstance(dummy_player_action, (np.ndarray, np.generic)):
-        #     # noinspection PyTypeChecker
-        #     self.dummy_player_action = np.argmax(dummy_player_action)
-        # else:
-        #     self.dummy_player_action = dummy_player_action
-        self.dummy_player_action = dummy_player_action
+        if isinstance(dummy_player_action, np.ndarray):
+            # noinspection PyTypeChecker
+            print('array action')
+            self.dummy_player_action = self.action_space.translate_action_4game_ohe(dummy_player_action)
+        else:
+            # print('simple action')
+            self.dummy_player_action = self.action_space.translate_action_4game(dummy_player_action)
+        # self.dummy_player_action = dummy_player_action
 
         # if self.dummy_player_action not in self.pl[self.observer_player].analyze():
         #     if self.turn_state is None:
@@ -2968,6 +3028,7 @@ class Environment(Table):
             if self.action == 'Attack':
                 if self.queue_to_get_dummy_action_idx():
                     self.turn_state = self.pl[self.current_player_id].convert_deck_2state()
+                    self.turn_state = self.turn_state.reshape(-1, )
                     # print(turn_state.shape)
                     turn_reward = self.pl[self.current_player_id].turn_reward
                     if self.episode_players_ranks:
@@ -2996,6 +3057,7 @@ class Environment(Table):
                         if self.queue_to_get_dummy_action_idx():
                             self.turn_state = self.pl[self.current_player_id].convert_deck_2state()
                             # print(turn_state.shape)
+                            self.turn_state = self.turn_state.reshape(-1, )
                             turn_reward = self.pl[self.current_player_id].turn_reward
                             if self.episode_players_ranks:
                                 if self.current_player_id in self.episode_players_ranks:
@@ -3030,6 +3092,7 @@ class Environment(Table):
                         and self.pl[self.current_player_id].attack_player_pass_flag:
                     if self.queue_to_get_dummy_action_idx():
                         self.turn_state = self.pl[self.current_player_id].convert_deck_2state()
+                        self.turn_state = self.turn_state.reshape(-1, )
                         # print(turn_state.shape)
                         turn_reward = self.pl[self.current_player_id].turn_reward
                         if self.episode_players_ranks:
@@ -3058,6 +3121,7 @@ class Environment(Table):
                 continue
 
         self.turn_state = self.pl[self.observer_player].convert_deck_2state()
+        self.turn_state = self.turn_state.reshape(-1, )
         turn_reward = self.calc_rank_reward(self.observer_player)
         is_done = True
         info = {'action_external': dummy_player_action,
@@ -3087,8 +3151,8 @@ class Agent:
         self.total_reward = 0.0
         self.env.verbose = self.verbose
         self.env.debug_verbose = self.debug_verbose
-        self.env.step(0, first_step=True)
-        self.running_reward = 10
+        self.env.step(self.env.action_space.pass_action, first_step=True)
+        # self.running_reward = 10
         pass
 
     @tf.function
@@ -3115,18 +3179,19 @@ class Agent:
         done_reward = None
         ''' Testing '''
         # action = self.env.action_space.sample()
-        step_valid_actions = self.env.pl[self.observer_player].analyze()
 
+        step_valid_actions = self.env.action_space.get_env_valid_actions()
+        step_valid_actions2 = self.env.pl[self.observer_player].analyze()
 
         # msg_before = f"Before valid actions list {valid_action_lst}"
         if np.random.random() < epsilon:
-            action = random.choice(step_valid_actions)
+            action = int(self.env.action_space.sample())
         else:
             state_a = np.array([self.state], copy=False)
             self.state_tensor = tf.convert_to_tensor(state_a, dtype=tf.float32)
             step_valid_actions_v = tf.convert_to_tensor(step_valid_actions)
             action = self._get_action_from_tf(nnmodel, step_valid_actions_v)
-            action = action.numpy()
+            action = int(action.numpy())
             # print(action, step_valid_actions)
             # state_a = np.array([self.state], copy=False)
             # state_tensor = tf.convert_to_tensor(state_a)
@@ -3151,7 +3216,7 @@ class Agent:
             # else:
             #     msg = f'Correct action {action} in {step_valid_actions}'
             #     print(msg)
-
+        pass
         new_state, reward, is_done, info = self.env.step(action, step_epsilon=epsilon)
         if self.verbose:
             print("Last action", action)
