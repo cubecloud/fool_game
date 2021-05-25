@@ -3034,7 +3034,7 @@ class Environment(Table):
             if self.action == 'Attack':
                 if self.queue_to_get_dummy_action_idx():
                     self.turn_state = self.pl[self.current_player_id].convert_deck_2state()
-                    self.turn_state = self.turn_state.reshape(-1, 1)
+                    self.turn_state = self.turn_state.reshape(-1, )
                     # print(turn_state.shape)
                     turn_reward = self.pl[self.current_player_id].turn_reward
                     if self.episode_players_ranks:
@@ -3063,7 +3063,7 @@ class Environment(Table):
                         if self.queue_to_get_dummy_action_idx():
                             self.turn_state = self.pl[self.current_player_id].convert_deck_2state()
                             # print(turn_state.shape)
-                            self.turn_state = self.turn_state.reshape(-1, 1)
+                            self.turn_state = self.turn_state.reshape(-1, )
                             turn_reward = self.pl[self.current_player_id].turn_reward
                             if self.episode_players_ranks:
                                 if self.current_player_id in self.episode_players_ranks:
@@ -3098,7 +3098,7 @@ class Environment(Table):
                         and self.pl[self.current_player_id].attack_player_pass_flag:
                     if self.queue_to_get_dummy_action_idx():
                         self.turn_state = self.pl[self.current_player_id].convert_deck_2state()
-                        self.turn_state = self.turn_state.reshape(-1, 1)
+                        self.turn_state = self.turn_state.reshape(-1, )
                         # print(turn_state.shape)
                         turn_reward = self.pl[self.current_player_id].turn_reward
                         if self.episode_players_ranks:
@@ -3127,7 +3127,7 @@ class Environment(Table):
                 continue
 
         self.turn_state = self.pl[self.observer_player].convert_deck_2state()
-        self.turn_state = self.turn_state.reshape(-1, 1)
+        self.turn_state = self.turn_state.reshape(-1, )
         turn_reward = self.calc_rank_reward(self.observer_player)
         is_done = True
         info = {'action_external': dummy_player_action,
