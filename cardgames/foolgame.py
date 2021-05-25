@@ -32,7 +32,7 @@ from torch.nn.functional import normalize
 # from tensorflow.keras.layers import BatchNormalization
 # from tensorflow.keras.optimizers import RMSprop, Adam, SGD, RMSprop
 
-__version__ = "0.02.60"
+__version__ = "0.02.61"
 
 
 # def q_model_conv(in_shape=(37, 25,), num_actions=37):
@@ -3127,7 +3127,7 @@ class Environment(Table):
                 continue
 
         self.turn_state = self.pl[self.observer_player].convert_deck_2state()
-        self.turn_state = np.array(self.turn_state.reshape(-1, 1), copy=False)
+        self.turn_state = self.turn_state.reshape(-1, 1)
         turn_reward = self.calc_rank_reward(self.observer_player)
         is_done = True
         info = {'action_external': dummy_player_action,
