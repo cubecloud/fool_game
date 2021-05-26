@@ -32,7 +32,7 @@ from torch.nn.functional import normalize
 # from tensorflow.keras.layers import BatchNormalization
 # from tensorflow.keras.optimizers import RMSprop, Adam, SGD, RMSprop
 
-__version__ = "0.02.64"
+__version__ = "0.02.65"
 
 
 # def q_model_conv(in_shape=(37, 25,), num_actions=37):
@@ -367,8 +367,14 @@ class Player(Deck):
         # for ix, card_value in enumerate(self.player_deck.values()):
         #     self.converted_deck_header[ix, 1:5] = np.array(self.convert_2ohe(card_value[0], 4))
         #     self.converted_deck_header[ix, 5:14] = np.array(self.convert_2ohe(card_value[1], 9))
+
         self.all_empty_states = np.repeat(self.empty_deck[np.newaxis, ...],
                                           self.players_number*3 + 8, axis=0)
+
+        self.all_empty_action_states = np.repeat(self.all_empty_states[np.newaxis, ...],
+                                                 7, axis=0)
+        self.seven_action_states = np.copy(self.all_empty_action_states)
+
         self.turn_state = np.copy(self.empty_deck)
         self.zeros_state = np.copy(self.empty_deck)
         self.__converting_list()
@@ -391,6 +397,13 @@ class Player(Deck):
     def convert_card_property(self, card_property):
         return self.converting_players_order.index(card_property)
 
+    def push_current_state_to_action_states(self, state):
+        ''' push all dimensions to 1 left '''
+        self.seven_action_states[1:, ...] = np.copy(self.seven_action_states[0:-1, ...])
+        ''' add new state to zero dimension'''
+        self.seven_action_states[0, ...] = state
+        return self.seven_action_states
+
     def convert_deck_2state(self) -> np.array:
         """
         Returns:
@@ -404,12 +417,12 @@ class Player(Deck):
                         each card is have state 1 or 0 (zero) - present or not
                         each plane corresponds to ('Attack', 'Defend' or 'Passive Attack') _player state_
                         Warning! 37 action card = 'Pass',  must be added to _player state_ at all actions,
-                        but not a 1st Attack turn
+                        but not at 1st turn of Attack
                     
         plane[3]        - Attack played cards on the table
         plane[4]        - Defend played cards on the table
         plane[5]        - last action card 
-        plane[6]        - TRUMP deck cards
+        plane[6]        - TRUMP deck cards (weights)
         plane[7]        - discard pile (graveyard)
         plane[8..23]    - PUBLIC cards of other player(s) separate planes for each player 
                         and for each _player state_  (3*players_qty - 1)
@@ -499,8 +512,10 @@ class Player(Deck):
             # ''' Public players property '''
             # for player_ix in range(1, self.players_number + 1):
             #     state[player_ix + 6][ix, 0] = float(((card_value[3] != 0) and (card_value[7] == 1) and (card_value[2] == player_ix)))
+        self.push_current_state_to_action_states(state)
+        return  self.seven_action_states
+        # return state
 
-        return state
 
     # def add_turn_experience(self, action_idx) -> None:
     #     """
@@ -1294,10 +1309,12 @@ class Action(object):
         self.high = self.shape[0]
         self.abs_minmax = 1.0
         self.pass_action = self.shape[0]-1
+
         # self.actions_dict = {}
         # self.cards_indexes = range(0, 36)
         # self.pass_action = 37
         pass
+
     def to_ohe(self, action):
         new_action = np.zeros(self.shape[0])
         new_action[action] = float(1.0)
@@ -1380,9 +1397,10 @@ class Action(object):
 
 
 class Observation(Action):
-    def __init__(self, player_object: DummyPlayer):
+    def __init__(self, player_object: object):
         super().__init__(player_object)
-        self.shape = self.pl.all_empty_states.shape
+        # self.shape = self.pl.all_empty_states.shape
+        self.states_dim = np.prod(self.pl.all_empty_action_states.shape)
         pass
 
 
@@ -2003,21 +2021,6 @@ class Table:
             action = 'Passive'
         return action
 
-    # def add_attack_2all(self):
-    #     for player_num in self.players_numbers_lst:
-    #         if player_num != self.current_player_id:
-    #             self.pl[player_num].add_other_player_attack_status(self.result, players_num)
-    #         else:
-    #             self.pl[self.current_player_id].add_attack_status(self.result)
-    #     pass
-    #
-    # def add_defend_2all(self):
-    #     for player_num in self.players_numbers_lst:
-    #         if player_num != self.current_player_id:
-    #             self.pl[player_num].add_other_player_defending_status(self.result, players_num)
-    #         else:
-    #             self.pl[self.current_player_id].add_defending_status(self.result)
-    #     pass
 
     def current_player_attack_action(self) -> None:
         if self.result > 0:
@@ -2412,6 +2415,36 @@ class Environment(Table):
             self.step(0, first_step=True)
         # TODO create another option for reset environment and return state may be choose the player
         return self.pl[self.observer_player].convert_deck_2state().flatten()
+
+    # def next_round(self):
+    #     self.game_round += 1
+    #     self.set_attack_player_pass_flag(False)
+    #     for player_id in self.players_numbers_lst:
+    #
+    #         ''' Add round experience if player AI '''
+    #         # if self.pl[player_id].player_type == 'AI':
+    #         # self.pl[player_id].add_round_experience()
+    #
+    #         ''' remove passive players flags '''
+    #         self.set_passive_player_pass_flag(player_id, False)
+    #
+    #         ''' adding cards from deck '''
+    #         if not self.end_of_deck:
+    #             for _ in range(self.pl[player_id].check_hand_before_round()):
+    #                 self.add_card_2player_hand(player_id)
+    #
+    #         ''' Debug of the card deck array '''
+    #         if self.debug_verbose > 2:
+    #             print(f'Player number: {player_id}')
+    #             with np.printoptions(precision=3, suppress=True):
+    #                 print(self.pl[player_id].convert_deck_2state())
+    #             # for key, value in self.pl[player_id].player_deck.items():
+    #             #     print(key, value)
+    #
+    #         self.pl[player_id].change_game_round(self.game_round)
+    #         self.pl[player_id].change_player_turn(self.player_turn)
+    #     pass
+
 
     def init_nnmodel(self):
         if not self.compiled_status:
