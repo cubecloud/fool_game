@@ -32,7 +32,7 @@ from torch.nn.functional import normalize
 # from tensorflow.keras.layers import BatchNormalization
 # from tensorflow.keras.optimizers import RMSprop, Adam, SGD, RMSprop
 
-__version__ = "0.02.66"
+__version__ = "0.02.67"
 
 
 # def q_model_conv(in_shape=(37, 25,), num_actions=37):
@@ -1428,13 +1428,16 @@ class Table:
         self.pl: dict = {}
         for i in range(1, self.players_number + 1):
             self.players_numbers_lst.append(i)
+
+        self.verbose = False
         self.debug_verbose = 1
+
         self.episode_players_ranks: list = []
         self.start_time = time.time()
         self.time_elapsed = 0
         self.first_discard = True
         self.game_circle = True
-        self.verbose = False
+
         self.rank_rewards_lst = list(np.linspace(1.0, -1.0, num=self.players_qty))
         pass
 
@@ -2369,7 +2372,6 @@ class Environment(Table):
         self.observer_player = observer_player
         self.episode_players_ranks = []
 
-
         self.game_idx: int = 0
         self.game_idxs: list = []
         self.game_winners: list = []
@@ -2391,7 +2393,7 @@ class Environment(Table):
         self.loss_funct = tf.keras.losses.MSE
         self.compiled_status = False
         if self.nnmodel is not None:
-            self.init_nnmodel()
+            self.init_nnmodel(self.nnmodel)
         self.turn_done = False
         self.turn_state = None
         _ = self.reset()
@@ -2404,7 +2406,9 @@ class Environment(Table):
         Returns:
             state (np.array):   returns initial state
         """
+        debug_params_save =  (self.verbose, self.debug_verbose)
         super().__init__(self.players_qty)
+        self.verbose, self.debug_verbose = debug_params_save
         self.prepare_new_game()
         if self.env_type == 'Dummy':
             self.action_space = Action(self.pl[self.observer_player])
@@ -2446,7 +2450,8 @@ class Environment(Table):
     #     pass
 
 
-    def init_nnmodel(self):
+    def init_nnmodel(self, model):
+        self.nnmodel = model
         if not self.compiled_status:
             self.nnmodel.compile(optimizer=self.optimizer,
                                  loss=self.loss_funct)
@@ -2840,18 +2845,18 @@ class Environment(Table):
                 f'{self.pl[self.current_player_id].player_name} забирает '
                 f'{self.pl[self.current_player_id].show_cards_hor(self.desktop_list)}')
 
+            '''
+            Add reward of action
+            Returns back all card and penalty for every card player get
+            '''
+            self.pl[self.current_player_id].turn_reward = \
+                (-0.005 * (len(self.desktop_list)-1)/2) + (-0.001 * ((len(self.desktop_list)-1)/2+1))
+
             # '''
             # Add reward of action
-            # Returns back all card and penalty for every card player get
+            # another version of penalty for getting card to hand if player can't beat card
             # '''
-            # self.pl[self.current_player_id].turn_reward = \
-            #     (-0.005 * (len(self.desktop_list)-1)/2) + (-0.001 * ((len(self.desktop_list)-1)/2+1))
-
-            ''' 
-            Add reward of action
-            another version of penalty for getting card to hand if player can't beat card 
-            '''
-            self.pl[self.current_player_id].turn_reward = -0.005
+            # self.pl[self.current_player_id].turn_reward = -0.005
 
             ''' Мы забрали карты со стола '''
             self.add_cardslist_2player_hand(self.current_player_id, self.desktop_list)
@@ -3176,7 +3181,7 @@ class Agent:
         self.total_reward = 0.0
         self.env.verbose = self.verbose
         self.env.debug_verbose = self.debug_verbose
-        self.env.step(self.env.action_space.pass_action, first_step=True)
+        self.env.reset()
         # self.running_reward = 10
         pass
 
@@ -3282,16 +3287,19 @@ if __name__ == '__main__':
     weights_name = f"fool_cardgame_weights_2500.h5"
     weights_file_path = os.path.join(HOME, weights_name)
     players_num = 2
-    model = q_model_dense(in_shape=(518,), num_actions=37)
-    model.compile(optimizer=tf.keras.optimizers.Adam(), loss=tf.keras.losses.MSE)
-    # model.load_weights(weights_file_path)
+
+
 
     buffer = ExperienceReplay(20000)
 
     environment = Environment(players_num,
                               env_type="Dummy",
                               observer_player=1,
-                              nnmodel=model)
+                              nnmodel=None)
+
+    model = q_model_dense(in_shape=(environment.observation_space.states_dim,), num_actions=37)
+    environment.init_nnmodel(model)
+
     environment.verbose = True
 
     msg = f'--------------------------------------------------------------\n' \
@@ -3300,6 +3308,7 @@ if __name__ == '__main__':
     print(msg)
     test_agent = Agent(environment,
                        exp_buffer=buffer)
+
     msg = f'--------------------------------------------------------------\n' \
           f'                      1st step end                            \n' \
           f'--------------------------------------------------------------\n'
@@ -3308,12 +3317,14 @@ if __name__ == '__main__':
     eps_decay = .999985
     eps_min = 0.02
 
-    for _ in range(1):
+    for _ in range(2):
         reward = None
         counter = 0
+        test_agent.verbose = True
+        test_agent.debug_verbose = 2
+        test_agent._reset()
         while reward is None:
-            test_agent.verbose = True
-            test_agent.debug_verbose = 2
+
             epsilon = max(epsilon * eps_decay, eps_min)
             counter += 1
             msg = f'--------------------------------------------------------------\n' \
