@@ -32,7 +32,7 @@ from torch.nn.functional import normalize
 # from tensorflow.keras.layers import BatchNormalization
 # from tensorflow.keras.optimizers import RMSprop, Adam, SGD, RMSprop
 
-__version__ = "0.02.65"
+__version__ = "0.02.66"
 
 
 # def q_model_conv(in_shape=(37, 25,), num_actions=37):
@@ -399,7 +399,7 @@ class Player(Deck):
 
     def push_current_state_to_action_states(self, state):
         ''' push all dimensions to 1 left '''
-        self.seven_action_states[1:, ...] = np.copy(self.seven_action_states[0:-1, ...])
+        self.seven_action_states[1:-1, ...] = np.copy(self.seven_action_states[0:-2, ...])
         ''' add new state to zero dimension'''
         self.seven_action_states[0, ...] = state
         return self.seven_action_states
@@ -513,7 +513,7 @@ class Player(Deck):
             # for player_ix in range(1, self.players_number + 1):
             #     state[player_ix + 6][ix, 0] = float(((card_value[3] != 0) and (card_value[7] == 1) and (card_value[2] == player_ix)))
         self.push_current_state_to_action_states(state)
-        return  self.seven_action_states
+        return self.seven_action_states
         # return state
 
 
@@ -2840,12 +2840,18 @@ class Environment(Table):
                 f'{self.pl[self.current_player_id].player_name} забирает '
                 f'{self.pl[self.current_player_id].show_cards_hor(self.desktop_list)}')
 
+            # '''
+            # Add reward of action
+            # Returns back all card and penalty for every card player get
+            # '''
+            # self.pl[self.current_player_id].turn_reward = \
+            #     (-0.005 * (len(self.desktop_list)-1)/2) + (-0.001 * ((len(self.desktop_list)-1)/2+1))
+
             ''' 
             Add reward of action
-            Returns back all card and penalty for every card player get 
+            another version of penalty for getting card to hand if player can't beat card 
             '''
-            self.pl[self.current_player_id].turn_reward = \
-                (-0.005 * (len(self.desktop_list)-1)/2) + (-0.001 * ((len(self.desktop_list)-1)/2+1))
+            self.pl[self.current_player_id].turn_reward = -0.005
 
             ''' Мы забрали карты со стола '''
             self.add_cardslist_2player_hand(self.current_player_id, self.desktop_list)
