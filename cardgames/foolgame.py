@@ -32,7 +32,7 @@ from torch.nn.functional import normalize
 # from tensorflow.keras.layers import BatchNormalization
 # from tensorflow.keras.optimizers import RMSprop, Adam, SGD, RMSprop
 
-__version__ = "0.02.70"
+__version__ = "0.02.71"
 
 
 # def q_model_conv(in_shape=(37, 25,), num_actions=37):
@@ -399,6 +399,7 @@ class Player(Deck):
         ''' push all dimensions to 1 left '''
         self.seven_action_states[1:-1, ...] = np.copy(self.seven_action_states[0:-2, ...])
         ''' add new state to zero dimension'''
+
         self.seven_action_states[0, ...] = state
         return self.seven_action_states
 
@@ -474,12 +475,12 @@ class Player(Deck):
         state.append(list(card_state))
         if len(self.desktop_list) > 1 and ((self.action == 'Defend') or (self.action == 'Attack')):
             state[36] = [1.0, 1.0, 1.0, 1.0, .0, .0, .0, .0, .0, .0, .0, .0, .0]
-            state[36].extend(self.convert_2ohe(self.convert_card_property(self.player_number), self.players_number))
+            state[36].extend(self.convert_2ohe(self.convert_card_property(self.player_number), self.players_number+1, min_value=0))
             state[36].extend(self.convert_2ohe(3, 4, min_value=0))
             state[36].extend([.0, .0, .0, .0, .0])
         else:
             state[36] = [.0 for _ in range(len(state[0]))]
-        state = np.asarray(state)
+        state = np.array(state, copy=False)
         self.push_current_state_to_action_states(state)
         return self.seven_action_states
         # return np.array(state, dtype=np.float32)
